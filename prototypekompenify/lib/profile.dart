@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prototypekompenify/login.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -97,7 +98,15 @@ class ProfilePage extends StatelessWidget {
               children: [
                 menuItem(Icons.edit, "Edit Profile"),
                 menuItem(Icons.settings, "Settings"),
-                menuItem(Icons.logout, "Logout", color: Colors.red),
+                GestureDetector(onTap: (){
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginPage()),
+                    (route) => false,
+                    );
+                  },
+                  child: menuItem(Icons.logout, "Logout", color: Colors.red),
+                ),
               ],
             ),
           ),
