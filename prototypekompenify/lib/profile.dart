@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:prototypekompenify/login.dart';
+import 'app_theme.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -7,171 +7,352 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: Column(
+      backgroundColor: AppColors.bgPage,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _buildStatRow(),
+                  const SizedBox(height: 20),
+                  _buildInfoCard(),
+                  const SizedBox(height: 20),
+                  _buildMenuSection(context),
+                  const SizedBox(height: 20),
+                  _buildLogoutButton(context),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 3,
+        onTap: (i) {
+          if (i == 0) Navigator.pushReplacementNamed(context, '/dashboard');
+        },
+      ),
+    );
+  }
+
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context) {
+    return GradientHeader(
+      bottomPadding: 32,
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.only(top: 50, left: 20, right: 20),
-            height: 180,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue, Colors.blueAccent],
+          // Back + title row
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white, size: 16),
+                ),
               ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            child: const Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                "Profile",
-                style: TextStyle(color: Colors.white, fontSize: 22),
-              ),
-            ),
+              const SizedBox(width: 12),
+              const Text("Profil Saya",
+                  style: TextStyle(color: Colors.white,
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+            ],
           ),
 
-          Transform.translate(
-            offset: const Offset(0, -60),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.all(20),
+          const SizedBox(height: 24),
+
+          // Avatar + name
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 80, height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10),
-                  ],
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.2),
+                  border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Colors.purple, Colors.blue],
-                            ),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(Icons.person, color: Colors.white),
-                        ),
-                        const SizedBox(width: 15),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Alex Johnson",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text("Student ID: 2024-0001234"),
-                          ],
-                        )
-                      ],
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        StatItem("1,250", "Total Points"),
-                        StatItem("12", "Completed"),
-                        StatItem("3", "Active"),
-                      ],
-                    ),
-                  ],
+                child: const Center(
+                  child: Text("KS",
+                      style: TextStyle(color: Colors.white,
+                          fontSize: 26, fontWeight: FontWeight.w700)),
                 ),
               ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                menuItem(Icons.edit, "Edit Profile"),
-                menuItem(Icons.settings, "Settings"),
-                GestureDetector(onTap: (){
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginPage()),
-                    (route) => false,
-                    );
-                  },
-                  child: menuItem(Icons.logout, "Logout", color: Colors.red),
+              Container(
+                width: 24, height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCD34D),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
-              ],
-            ),
+                child: const Icon(Icons.edit_rounded, size: 12, color: Colors.white),
+              ),
+            ],
           ),
 
-          const Spacer(),
+          const SizedBox(height: 12),
 
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Icon(Icons.home),
-                Icon(Icons.task),
-                Icon(Icons.history),
-                Icon(Icons.notifications),
-                Icon(Icons.person, color: Colors.blue),
-              ],
-            ),
-          )
+          const Text("Krisna Saputra",
+              style: TextStyle(color: Colors.white,
+                  fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text("Teknik Informatika — Angkatan 2022",
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
         ],
       ),
     );
   }
 
-  Widget menuItem(IconData icon, String title, {Color color = Colors.black}) {
+  // ── Stat row ───────────────────────────────────────────────────────────────
+  Widget _buildStatRow() {
+    return Row(
+      children: [
+        _StatCard(label: "Total Kompen", value: "120", unit: "Jam",
+            icon: Icons.access_time_rounded, color: AppColors.primary),
+        const SizedBox(width: 10),
+        _StatCard(label: "Selesai", value: "8", unit: "Tugas",
+            icon: Icons.check_circle_rounded, color: const Color(0xFF16A34A)),
+        const SizedBox(width: 10),
+        _StatCard(label: "Menunggu", value: "3", unit: "Tugas",
+            icon: Icons.hourglass_top_rounded, color: const Color(0xFFD97706)),
+      ],
+    );
+  }
+
+  // ── Info card ──────────────────────────────────────────────────────────────
+  Widget _buildInfoCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Informasi Akademik", style: AppTextStyle.h3),
+          const SizedBox(height: 16),
+          _infoRow(Icons.badge_outlined,        "NIM",          "22.11.5555"),
+          _divider(),
+          _infoRow(Icons.email_outlined,        "Email",        "krisna@student.ac.id"),
+          _divider(),
+          _infoRow(Icons.school_outlined,       "Program Studi","Teknik Informatika"),
+          _divider(),
+          _infoRow(Icons.calendar_today_outlined,"Semester",    "Genap 2024/2025"),
+          _divider(),
+          _infoRow(Icons.person_outline_rounded, "Dosen PA",    "Dr. Budi Santoso"),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 15),
-          Text(title, style: TextStyle(color: color)),
-          const Spacer(),
-          const Icon(Icons.arrow_forward_ios, size: 16),
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.menuIndigoBg,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 17, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: AppTextStyle.caption),
+          ),
+          Text(value, style: AppTextStyle.body.copyWith(fontWeight: FontWeight.w500)),
         ],
+      ),
+    );
+  }
+
+  Widget _divider() => Divider(color: Colors.black.withOpacity(0.05), height: 1);
+
+  // ── Menu section ───────────────────────────────────────────────────────────
+  Widget _buildMenuSection(BuildContext context) {
+    final items = [
+      (Icons.history_rounded,         AppColors.menuIndigoBg, AppColors.menuIndigoFg, "Riwayat Kompen",   "Lihat semua aktivitas"),
+      (Icons.upload_file_rounded,     AppColors.menuGreenBg,  AppColors.menuGreenFg,  "Upload Bukti",     "Unggah dokumen kompen"),
+      (Icons.notifications_outlined,  AppColors.menuAmberBg,  AppColors.menuAmberFg,  "Notifikasi",       "Kelola preferensi notif"),
+      (Icons.lock_outline_rounded,    AppColors.menuPinkBg,   AppColors.menuPinkFg,   "Ubah Password",    "Keamanan akun"),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+      ),
+      child: Column(
+        children: items.asMap().entries.map((e) {
+          final i = e.key;
+          final item = e.value;
+          return Column(
+            children: [
+              GestureDetector(
+                onTap: () {},
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(
+                          color: item.$2,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(item.$1, color: item.$3, size: 19),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.$4,
+                                style: AppTextStyle.body.copyWith(fontWeight: FontWeight.w500)),
+                            Text(item.$5, style: AppTextStyle.caption),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textHint, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              if (i < items.length - 1) _divider(),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Logout button ──────────────────────────────────────────────────────────
+  Widget _buildLogoutButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            title: const Text("Keluar?", style: AppTextStyle.h2),
+            content: const Text(
+              "Apakah Anda yakin ingin keluar dari aplikasi?",
+              style: AppTextStyle.body,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Batal",
+                    style: TextStyle(color: AppColors.textSecondary)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                ),
+                child: const Text("Keluar"),
+              ),
+            ],
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEE2E2),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: const Color(0xFFFCA5A5)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 18),
+            SizedBox(width: 8),
+            Text("Keluar dari Akun",
+                style: TextStyle(color: Color(0xFFDC2626),
+                    fontSize: 14, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
 }
 
-class StatItem extends StatelessWidget {
-  final String value;
-  final String label;
+// ── Stat card ──────────────────────────────────────────────────────────────────
+class _StatCard extends StatelessWidget {
+  final String label, value, unit;
+  final IconData icon;
+  final Color color;
 
-  const StatItem(this.value, this.label, {super.key});
+  const _StatCard({
+    required this.label, required this.value, required this.unit,
+    required this.icon, required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: Colors.black.withOpacity(0.06)),
         ),
-        Text(label, style: const TextStyle(color: Colors.grey)),
-      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 10),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(text: value,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary)),
+                  TextSpan(text: " $unit",
+                      style: const TextStyle(fontSize: 11,
+                          color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(label, style: AppTextStyle.caption),
+          ],
+        ),
+      ),
     );
   }
 }
