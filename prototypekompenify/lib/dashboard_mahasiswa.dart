@@ -88,8 +88,14 @@ class DashboardMahasiswaPage extends StatelessWidget {
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
         onTap: (i) {
-          if (i == 2) Navigator.pushNamed(context, '/notifications');
-          if (i == 3) Navigator.pushNamed(context, '/profile');
+          if (i == 0) return;
+          if (i == 1) {
+            Navigator.pushNamed(context, '/available_jobs');
+          } else if (i == 2) {
+            Navigator.pushNamed(context, '/notifications');
+          } else if (i == 3) {
+            Navigator.pushNamed(context, '/profile');
+          }
         },
       ),
     );

@@ -5,6 +5,7 @@ import 'login.dart';
 import 'dashboard_mahasiswa.dart';
 import 'profile.dart';
 import 'notification_page.dart';
+import 'avaliable_jobs_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
           '/': const SplashScreen(),
           '/login': const LoginPage(),
           '/dashboard': const DashboardMahasiswaPage(),
+          '/available_jobs': const AvailableJobsPage(),
           '/profile': const ProfilePage(),
           '/notifications': const NotificationPage(),
         };
