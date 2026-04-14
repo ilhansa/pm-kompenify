@@ -4,6 +4,7 @@ import 'splash_screen.dart';
 import 'login.dart';
 import 'dashboard_mahasiswa.dart';
 import 'profile.dart';
+import 'notification_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,6 @@ class MyApp extends StatelessWidget {
       title: 'Kompenify',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // Seed dari indigo biar konsisten sama design system
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4F46E5),
           brightness: Brightness.light,
@@ -39,26 +39,23 @@ class MyApp extends StatelessWidget {
         ),
       ),
       initialRoute: '/',
-      routes: {
-        '/': (ctx) => const SplashScreen(),
-        '/login': (ctx) => const LoginPage(),
-        '/dashboard': (ctx) => const DashboardMahasiswaPage(),
-        '/profile': (ctx) => const ProfilePage(),
-      },
-      // Animasi transisi antar halaman yang smooth
       onGenerateRoute: (settings) {
-        final routes = {
+        final Map<String, Widget> routes = {
           '/': const SplashScreen(),
           '/login': const LoginPage(),
           '/dashboard': const DashboardMahasiswaPage(),
           '/profile': const ProfilePage(),
+          '/notifications': const NotificationPage(),
         };
-        final page = routes[settings.name];
+
+        final Widget? page = routes[settings.name];
+
         if (page == null) return null;
+
         return PageRouteBuilder(
           settings: settings,
-          pageBuilder: (_, __, ___) => page,
-          transitionsBuilder: (_, anim, __, child) {
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionsBuilder: (context, anim, secondaryAnimation, child) {
             return FadeTransition(
               opacity: CurvedAnimation(parent: anim, curve: Curves.easeInOut),
               child: child,

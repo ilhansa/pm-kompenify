@@ -88,6 +88,7 @@ class DashboardMahasiswaPage extends StatelessWidget {
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
         onTap: (i) {
+          if (i == 2) Navigator.pushNamed(context, '/notifications');
           if (i == 3) Navigator.pushNamed(context, '/profile');
         },
       ),
@@ -252,6 +253,7 @@ class DashboardMahasiswaPage extends StatelessWidget {
           label: "Notif",
           iconBg: AppColors.menuAmberBg,
           iconFg: AppColors.menuAmberFg,
+          onTap: () => Navigator.pushNamed(context, '/notifications'),
         ),
         const SizedBox(width: 10),
         _MenuItem(
