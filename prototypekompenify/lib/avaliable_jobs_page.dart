@@ -42,9 +42,18 @@ class AvailableJobsPage extends StatelessWidget {
       bottomNavigationBar: AppBottomNav(
         currentIndex: 1, // Index Tugas
         onTap: (i) {
-          if (i == 0) Navigator.pushReplacementNamed(context, '/dashboard');
-          if (i == 2) Navigator.pushReplacementNamed(context, '/notifications');
-          if (i == 3) Navigator.pushReplacementNamed(context, '/profile');
+          if (i == 1)
+            return; // Jangan pindah kalau sudah di halaman yang sama
+
+          if (i == 0) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          } else if (i == 1) {
+            // Kita sudah di sini
+          } else if (i == 2) {
+            Navigator.pushReplacementNamed(context, '/notifications');
+          } else if (i == 3) {
+            Navigator.pushReplacementNamed(context, '/profile');
+          }
         },
       ),
     );

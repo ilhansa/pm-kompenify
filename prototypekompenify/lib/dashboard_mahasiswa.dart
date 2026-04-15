@@ -237,7 +237,11 @@ class DashboardMahasiswaPage extends StatelessWidget {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildMenuRow(BuildContext context) {
+=======
+Widget _buildMenuRow(BuildContext context) {
+>>>>>>> upload_page
     return Row(
       children: [
         _MenuItem(
@@ -245,6 +249,12 @@ class DashboardMahasiswaPage extends StatelessWidget {
           label: "Tugas",
           iconBg: AppColors.menuIndigoBg,
           iconFg: AppColors.menuIndigoFg,
+<<<<<<< HEAD
+=======
+          onTap: () {
+            Navigator.pushNamed(context, '/available_jobs');
+          }, 
+>>>>>>> upload_page
         ),
         const SizedBox(width: 10),
         _MenuItem(
@@ -252,6 +262,10 @@ class DashboardMahasiswaPage extends StatelessWidget {
           label: "Upload",
           iconBg: AppColors.menuGreenBg,
           iconFg: AppColors.menuGreenFg,
+<<<<<<< HEAD
+=======
+          onTap: () => Navigator.pushNamed(context, '/upload'), 
+>>>>>>> upload_page
         ),
         const SizedBox(width: 10),
         _MenuItem(
@@ -406,4 +420,8 @@ class _TaskCard extends StatelessWidget {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> upload_page
