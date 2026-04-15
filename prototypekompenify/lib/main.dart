@@ -5,13 +5,9 @@ import 'login.dart';
 import 'dashboard_mahasiswa.dart';
 import 'profile.dart';
 import 'notification_page.dart';
-<<<<<<< HEAD
-import 'avaliable_jobs_page.dart';
-=======
 import 'upload_page.dart';
 import 'avaliable_jobs_page.dart';
 // 1. Tambahkan baris import ini
->>>>>>> upload_page
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,15 +44,6 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       onGenerateRoute: (settings) {
         final Map<String, Widget> routes = {
-<<<<<<< HEAD
-          '/': const SplashScreen(),
-          '/login': const LoginPage(),
-          '/dashboard': const DashboardMahasiswaPage(),
-          '/available_jobs': const AvailableJobsPage(),
-          '/profile': const ProfilePage(),
-          '/notifications': const NotificationPage(),
-        };
-=======
   '/': const SplashScreen(),
   '/login': const LoginPage(),
   '/dashboard': const DashboardMahasiswaPage(),
@@ -65,7 +52,6 @@ class MyApp extends StatelessWidget {
   '/upload': const UploadPage(),
   '/available_jobs': const AvailableJobsPage(), // Tambahkan baris ini
 };
->>>>>>> upload_page
 
         final Widget? page = routes[settings.name];
 
@@ -85,8 +71,4 @@ class MyApp extends StatelessWidget {
       },
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> upload_page
