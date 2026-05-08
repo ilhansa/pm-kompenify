@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'splash_screen.dart';
-import 'login.dart';
-import 'dashboard_mahasiswa.dart';
-import 'profile.dart';
-import 'notification_page.dart';
-import 'upload_page.dart';
-import 'avaliable_jobs_page.dart';
-// 1. Tambahkan baris import ini
+import 'package:provider/provider.dart';
+import 'data_service.dart';
+import 'app_theme.dart';
+import 'login_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,50 +21,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kompenify',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        scaffoldBackgroundColor: const Color(0xFFF4F6FB),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-        ),
+    return ChangeNotifierProvider(
+      create: (_) => DataService(),
+      child: MaterialApp(
+        title: 'Kompenify',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const LoginScreen(),
       ),
-      initialRoute: '/',
-      onGenerateRoute: (settings) {
-        final Map<String, Widget> routes = {
-  '/': const SplashScreen(),
-  '/login': const LoginPage(),
-  '/dashboard': const DashboardMahasiswaPage(),
-  '/profile': const ProfilePage(),
-  '/notifications': const NotificationPage(),
-  '/upload': const UploadPage(),
-  '/available_jobs': const AvailableJobsPage(), // Tambahkan baris ini
-};
-
-        final Widget? page = routes[settings.name];
-
-        if (page == null) return null;
-
-        return PageRouteBuilder(
-          settings: settings,
-          pageBuilder: (context, animation, secondaryAnimation) => page,
-          transitionsBuilder: (context, anim, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: CurvedAnimation(parent: anim, curve: Curves.easeInOut),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 250),
-        );
-      },
     );
   }
 }
