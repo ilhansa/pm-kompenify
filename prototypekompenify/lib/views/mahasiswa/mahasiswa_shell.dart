@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
-import 'data_service.dart';
-import 'app_theme.dart';
+import '../../controllers/data_service.dart';
+import '../../utils/app_theme.dart';
 import 'mahasiswa_dashboard.dart';
 import 'assignment_list.dart';
 import 'kompen_saya.dart';
-import 'notifikasi_screen.dart';
-import 'profil_screen.dart';
+import '../shared/notifikasi_screen.dart';
+import '../shared/profil_screen.dart';
 
 class MahasiswaShell extends StatefulWidget {
   const MahasiswaShell({super.key});
@@ -29,7 +29,9 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
 
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<DataService>().getUnreadCount(context.read<DataService>().currentUser?.id ?? '');
+    final unread = context.watch<DataService>().getUnreadCount(
+      context.read<DataService>().currentUser?.id ?? '',
+    );
 
     return Scaffold(
       body: _screens[_idx],
@@ -44,19 +46,38 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
           destinations: [
-            const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-            const NavigationDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment_rounded), label: 'Assignment'),
-            const NavigationDestination(icon: Icon(Icons.task_alt_outlined), selectedIcon: Icon(Icons.task_alt_rounded), label: 'Kompen Saya'),
+            const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.assignment_outlined),
+              selectedIcon: Icon(Icons.assignment_rounded),
+              label: 'Assignment',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.task_alt_outlined),
+              selectedIcon: Icon(Icons.task_alt_rounded),
+              label: 'Kompen Saya',
+            ),
             NavigationDestination(
               icon: badges.Badge(
                 showBadge: unread > 0,
-                badgeContent: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 9)),
+                badgeContent: Text(
+                  '$unread',
+                  style: const TextStyle(color: Colors.white, fontSize: 9),
+                ),
                 child: const Icon(Icons.notifications_outlined),
               ),
               selectedIcon: const Icon(Icons.notifications_rounded),
               label: 'Notifikasi',
             ),
-            const NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person_rounded), label: 'Profil'),
+            const NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Profil',
+            ),
           ],
         ),
       ),

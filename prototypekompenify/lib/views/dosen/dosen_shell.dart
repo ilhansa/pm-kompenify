@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'data_service.dart';
-import 'app_theme.dart';
-import 'common_widgets.dart';
-import 'models.dart';
-import 'login_screen.dart';
-import 'notifikasi_screen.dart';
+import '../../controllers/data_service.dart';
+import '../../utils/app_theme.dart';
+import '../shared/common_widgets.dart';
+import '../../models/models.dart';
+import '../auth/login_screen.dart';
+import '../shared/notifikasi_screen.dart';
 
 // ─── Dosen Shell ─────────────────────────────────────────────────────────────
 class DosenShell extends StatefulWidget {

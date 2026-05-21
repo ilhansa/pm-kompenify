@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'data_service.dart';
-import 'app_theme.dart';
-import 'common_widgets.dart';
-import 'models.dart';
-import 'login_screen.dart';
+import '../../controllers/data_service.dart';
+import '../../utils/app_theme.dart';
+import '../shared/common_widgets.dart';
+import '../../models/models.dart';
+import '../auth/login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});

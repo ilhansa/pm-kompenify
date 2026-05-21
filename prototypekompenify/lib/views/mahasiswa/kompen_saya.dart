@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'data_service.dart';
-import 'app_theme.dart';
-import 'common_widgets.dart';
-import 'models.dart';
+import '../../controllers/data_service.dart';
+import '../../utils/app_theme.dart';
+import '../shared/common_widgets.dart';
+import '../../models/models.dart';
 
 class KompenSayaScreen extends StatelessWidget {
   const KompenSayaScreen({super.key});

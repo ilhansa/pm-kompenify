@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'data_service.dart';
-import 'app_theme.dart';
-import 'common_widgets.dart';
-import 'models.dart';
-import 'admin_shell.dart';
-import 'mahasiswa_shell.dart';
-import 'dosen_shell.dart';
-import 'kaprodi_shell.dart';
+import '../../controllers/data_service.dart';
+import '../../utils/app_theme.dart';
+import '../shared/common_widgets.dart';
+import '../../models/models.dart';
+import '../admin/admin_shell.dart';
+import '../mahasiswa/mahasiswa_shell.dart';
+import '../dosen/dosen_shell.dart';
+import '../kaprodi/kaprodi_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

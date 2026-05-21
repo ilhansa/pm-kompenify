@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'data_service.dart';
-import 'app_theme.dart';
-import 'login_screen.dart';
+import 'controllers/data_service.dart';
+import 'utils/app_theme.dart';
+import 'views/auth/login_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

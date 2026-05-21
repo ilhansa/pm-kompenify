@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'app_theme.dart';
+import '../../utils/app_theme.dart';
 import 'admin_dashboard.dart';
 import 'admin_users.dart';
-import 'notifikasi_screen.dart';
+import '../shared/notifikasi_screen.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -35,9 +35,21 @@ class _AdminShellState extends State<AdminShell> {
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-            NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people_rounded), label: 'Pengguna'),
-            NavigationDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications_rounded), label: 'Notifikasi'),
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard_rounded),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people_rounded),
+              label: 'Pengguna',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.notifications_outlined),
+              selectedIcon: Icon(Icons.notifications_rounded),
+              label: 'Notifikasi',
+            ),
           ],
         ),
       ),
