@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../controllers/data_service.dart';
+import 'package:kompenify/models/mahasiswa_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import '../../models/models.dart';
@@ -8,6 +7,7 @@ import '../admin/admin_shell.dart';
 import '../mahasiswa/mahasiswa_shell.dart';
 import '../dosen/dosen_shell.dart';
 import '../kaprodi/kaprodi_shell.dart';
+import '../../controllers/auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,28 +40,48 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
-  Future<void> _login() async {
-    setState(() { _loading = true; _error = null; });
-    await Future.delayed(const Duration(milliseconds: 800));
-    final svc = context.read<DataService>();
-    final ok = svc.login(_nimCtrl.text.trim(), _passCtrl.text);
-    if (!mounted) return;
-    setState(() => _loading = false);
-    if (ok) {
-      final role = svc.currentUser!.role;
-      Widget dest;
-      switch (role) {
-        case UserRole.admin: dest = const AdminShell(); break;
-        case UserRole.mahasiswa: dest = const MahasiswaShell(); break;
-        case UserRole.dosen: dest = const DosenShell(); break;
-        case UserRole.kaprodi: dest = const KaprodiShell(); break;
+Future<void> _login() async {
+    if (_nimCtrl.text.trim().isEmpty || _passCtrl.text.isEmpty) {
+      setState(() => _error = 'NIM/NIP dan password tidak boleh kosong.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final authService = AuthController();
+      
+      // 1. TAMBAHKAN TANDA TANYA (?) DI SINI AGAR TIDAK CRASH JIKA DATA NULL
+      final MahasiswaModel? mahasiswa = await authService.loginMahasiswaLokal(
+        _nimCtrl.text.trim(),
+        _passCtrl.text,
+      );
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // 2. LAKUKAN PENGECEKAN AMAN
+      if (mahasiswa != null) {
+        // Jika data ada, baru oper ke Shell
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => MahasiswaShell(mahasiswa: mahasiswa)),
+        );
+      } else {
+        // Jika data di Firestore ternyata null/tidak ada
+        setState(() => _error = 'Akun terdaftar, tetapi data profil tidak ditemukan di Firestore.');
       }
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => dest));
-    } else {
-      setState(() => _error = 'NIM/NIP atau password salah. Coba lagi.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'NIM atau password salah.';
+      });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -4,8 +4,16 @@ import 'package:provider/provider.dart';
 import 'controllers/data_service.dart';
 import 'utils/app_theme.dart';
 import 'views/auth/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 4. Inisialisasi proyek Firebase kamu
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

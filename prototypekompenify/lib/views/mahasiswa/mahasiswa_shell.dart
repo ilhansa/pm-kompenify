@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
-import '../../controllers/data_service.dart';
 import '../../utils/app_theme.dart';
+import '../../models/mahasiswa_model.dart'; // 1. Wajib import model mahasiswamu
 import 'mahasiswa_dashboard.dart';
 import 'assignment_list.dart';
 import 'kompen_saya.dart';
@@ -10,7 +9,10 @@ import '../shared/notifikasi_screen.dart';
 import '../shared/profil_screen.dart';
 
 class MahasiswaShell extends StatefulWidget {
-  const MahasiswaShell({super.key});
+  // 2. Tambahkan parameter untuk menerima lemparan data dari login_screen
+  final MahasiswaModel mahasiswa;
+
+  const MahasiswaShell({super.key, required this.mahasiswa});
 
   @override
   State<MahasiswaShell> createState() => _MahasiswaShellState();
@@ -19,19 +21,27 @@ class MahasiswaShell extends StatefulWidget {
 class _MahasiswaShellState extends State<MahasiswaShell> {
   int _idx = 0;
 
-  final _screens = const [
-    MahasiswaDashboard(),
-    AssignmentListScreen(),
-    KompenSayaScreen(),
-    NotifikasiScreen(),
-    ProfilScreen(),
-  ];
+  // 3. Hapus kata 'const' di sini karena list ini sekarang dinamis berisi data objek
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    // 4. Inisialisasi halaman-halaman dan oper data 'widget.mahasiswa' ke dashboard
+    _screens = [
+      MahasiswaDashboard(mahasiswa: widget.mahasiswa), // Dashboard baru menerima data Firebase
+      const AssignmentListScreen(),
+      const KompenSayaScreen(),
+      const NotifikasiScreen(),
+      const ProfilScreen(), // Nanti jika profil butuh data, tinggal oper widget.mahasiswa juga
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<DataService>().getUnreadCount(
-      context.read<DataService>().currentUser?.id ?? '',
-    );
+    // 5. Matikan atau set sementara unread = 0 agar tidak memanggil DataService lama yang bikin crash.
+    // Nanti bagian notifikasi ini bisa kamu hubungkan ke Firestore terpisah.
+    int unread = 0; 
 
     return Scaffold(
       body: _screens[_idx],
