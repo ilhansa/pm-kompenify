@@ -46,3 +46,5 @@ app.*.map.json
 
 # ada deh pokoknyahahaahaha
 lib/firebase_options.dart
+# Mengunci file konfigurasi Firebase versi Android
+android/app/google-services.json
