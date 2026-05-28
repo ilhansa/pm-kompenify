@@ -92,54 +92,107 @@ class StatusBadge extends StatelessWidget {
 
 // ─── Kompen Card ────────────────────────────────────────────────────────────
 class KompenCard extends StatelessWidget {
-  final PengajuanKompen pengajuan;
-  final VoidCallback? onTap;
+  // UBAH: dari 'final PengajuanKompen pengajuan' menjadi Map<String, dynamic>
+  final Map<String, dynamic> pengajuan; 
+  final VoidCallback onTap;
 
-  const KompenCard({super.key, required this.pengajuan, this.onTap});
+  const KompenCard({super.key, required this.pengajuan, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: AppTheme.cardGradient,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.divider, width: 1),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: Text(pengajuan.assignmentJudul,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+    // Parsing String status dari Firestore menjadi Enum lokal agar warna status sesuai
+    String statusStr = pengajuan['status'] ?? 'menunggu';
+    
+    // Sesuaikan index atau nama enum jika dibutuhkan
+    KompenStatus status = KompenStatus.values.byName(statusStr);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        gradient: AppTheme.cardGradient,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        onTap: onTap,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    pengajuan['assignmentJudul'] ?? '', // Ambil dari Map
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _statusBadge(status),
+              ],
             ),
-            StatusBadge(label: pengajuan.statusLabel, color: pengajuan.statusColor),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            Icon(Icons.person_outline, size: 14, color: AppTheme.textMuted),
-            const SizedBox(width: 4),
-            Expanded(child: Text(pengajuan.dosenNama,
-              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary), overflow: TextOverflow.ellipsis)),
-          ]),
-          const SizedBox(height: 4),
-          Row(children: [
-            Icon(Icons.schedule_outlined, size: 14, color: AppTheme.textMuted),
-            const SizedBox(width: 4),
-            Text('${pengajuan.jamKompen} jam kompen',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-            const Spacer(),
-            Text(DateFormat('dd MMM yyyy').format(pengajuan.tanggalPengajuan),
-              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-          ]),
-          // TTD progress
-          if (pengajuan.status != KompenStatus.menunggu && pengajuan.status != KompenStatus.ditolak) ...[
-            const SizedBox(height: 12),
-            _TtdProgress(pengajuan: pengajuan),
+            const SizedBox(height: 8),
+            Text(
+              'Dosen: ${pengajuan['dosenNama'] ?? ''}', // Ambil dari Map
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Jam Kompen: ${pengajuan['jamKompen'] ?? 0} jam', // Ambil dari Map
+              style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
           ],
-        ]),
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+      ),
+    );
+  }
+
+  // Widget helper untuk menampilkan Badge Status di dalam Card
+  Widget _statusBadge(KompenStatus s) {
+    Color color;
+    String label;
+
+    switch (s) {
+      case KompenStatus.menunggu:
+        color = AppTheme.textSecondary;
+        label = 'Menunggu';
+        break;
+      case KompenStatus.proses:
+        color = AppTheme.accentOrange;
+        label = 'Proses';
+        break;
+      case KompenStatus.revisi:
+        color = AppTheme.accentRed;
+        label = 'Revisi';
+        break;
+      case KompenStatus.disetujuiDosen:
+        color = AppTheme.accent;
+        label = 'Disetujui Dosen';
+        break;
+      case KompenStatus.lunas:
+        color = AppTheme.accentGreen;
+        label = 'Lunas';
+        break;
+      case KompenStatus.ditolak:
+        color = AppTheme.accentRed;
+        label = 'Ditolak';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
       ),
     );
   }

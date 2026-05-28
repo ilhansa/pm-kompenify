@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:kompenify/models/mahasiswa_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
-import '../../models/models.dart';
-import '../admin/admin_shell.dart';
 import '../mahasiswa/mahasiswa_shell.dart';
-import '../dosen/dosen_shell.dart';
-import '../kaprodi/kaprodi_shell.dart';
+// import '../dosen/dosen_shell.dart';
+// import '../kaprodi/kaprodi_shell.dart';
 import '../../controllers/auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -55,7 +53,7 @@ Future<void> _login() async {
       final authService = AuthController();
       
       // 1. TAMBAHKAN TANDA TANYA (?) DI SINI AGAR TIDAK CRASH JIKA DATA NULL
-      final MahasiswaModel? mahasiswa = await authService.loginMahasiswaLokal(
+      final MahasiswaModel? mahasiswa = await authService.loginUser(
         _nimCtrl.text.trim(),
         _passCtrl.text,
       );
@@ -194,10 +192,7 @@ Future<void> _login() async {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('Demo Akun (password: password123)', style: TextStyle(fontSize: 11, color: AppTheme.accent, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    _demoRow('Admin', 'ADMIN001'),
                     _demoRow('Mahasiswa', '244107060072'),
-                    _demoRow('Dosen', 'NIP001'),
-                    _demoRow('Kaprodi', 'KAPRODI01'),
                   ]),
                 ),
                 const SizedBox(height: 40),

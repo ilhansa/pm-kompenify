@@ -1,16 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/mahasiswa_model.dart';
+import '../models/dosen_model.dart'; // Pastikan model dosen sudah di-import
 
 class AuthController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // LOGIN MENGGUNAKAN NIM
-  Future<MahasiswaModel?> loginMahasiswaLokal(String nim, String password) async {
+  // LOGIN MULTI-ROLE MENGGUNAKAN NIM/NIP
+  Future<dynamic> loginUser(String nimNip, String password) async {
     try {
-      // Otomatis ubah NIM menjadi format email di latar belakang
-      String fakeEmail = "$nim@kompenify.local";
+      // Otomatis ubah NIM/NIP menjadi format email di latar belakang
+      String fakeEmail = "$nimNip@kompenify.local";
 
       // Tembak ke Firebase Auth bawaan
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -23,33 +24,25 @@ class AuthController {
       // Ambil data tambahannya dari Firestore
       DocumentSnapshot doc = await _db.collection('users').doc(uid).get();
       if (doc.exists) {
-        return MahasiswaModel.fromFirestore(uid, doc.data() as Map<String, dynamic>);
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        String roleString = data['role'] ?? 'mahasiswa';
+
+        // Pilah role untuk mengembalikan objek model yang tepat
+        if (roleString == 'dosen') {
+          return DosenModel.fromFirestore(uid, data);
+        } else {
+          return MahasiswaModel.fromFirestore(uid, data);
+        }
       }
       return null;
     } catch (e) {
-      print("Error Login NIM: $e");
+      print("Error Login: $e");
       rethrow;
     }
   }
 
-  // REGISTRASI MENGGUNAKAN NIM
-  Future<void> registrasiMahasiswaLokal(MahasiswaModel mahasiswa) async {
-    try {
-      // Ubah NIM menjadi format email tiruan sebelum didaftarkan
-      String fakeEmail = "${mahasiswa.nim}@kompenify.local";
-
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: fakeEmail,
-        password: mahasiswa.password,
-      );
-
-      String uid = userCredential.user!.uid;
-
-      // Simpan data lengkap ke database Firestore
-      await _db.collection('users').doc(uid).set(mahasiswa.toJson());
-    } catch (e) {
-      print("Error Registrasi NIM: $e");
-      rethrow;
-    }
+  // FUNGSI LOGOUT RESMI
+  Future<void> logoutUser() async {
+    await _auth.signOut();
   }
 }

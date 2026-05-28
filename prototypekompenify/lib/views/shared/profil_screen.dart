@@ -1,79 +1,167 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../controllers/data_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import '../auth/login_screen.dart';
+import '../../models/mahasiswa_model.dart'; 
+import '../../controllers/auth_controller.dart'; // Import AuthController barumu
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
-    final user = svc.currentUser!;
-    final rekap = svc.getRekap(user.id);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
 
-    return GradientBackground(
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(children: [
-            const SizedBox(height: 20),
-            // Avatar
-            Container(
-              width: 88, height: 88,
-              decoration: BoxDecoration(gradient: AppTheme.primaryGradient, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.4), blurRadius: 20)]),
-              child: Center(child: Text(user.nama[0], style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white))),
-            ),
-            const SizedBox(height: 16),
-            Text(user.nama, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            StatusBadge(label: user.roleLabel, color: AppTheme.accent),
-            const SizedBox(height: 4),
-            Text(user.nim, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-            if (user.prodi != null) Text(user.prodi!, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-
-            const SizedBox(height: 28),
-            // Rekap stat
-            _RekapRow(rekap: rekap),
-            const SizedBox(height: 24),
-
-            // Menu list
-            _menuItem(Icons.assignment_outlined, 'Riwayat Kompen', subtitle: '${svc.getPengajuan(mahasiswaId: user.id).length} pengajuan'),
-            _menuItem(Icons.notifications_outlined, 'Notifikasi', subtitle: '${svc.getUnreadCount(user.id)} belum dibaca'),
-            _menuItem(Icons.help_outline_rounded, 'Bantuan & FAQ'),
-            _menuItem(Icons.info_outline_rounded, 'Tentang Aplikasi'),
-            const SizedBox(height: 16),
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.accentRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.accentRed.withOpacity(0.3)),
-              ),
-              child: ListTile(
-                onTap: () {
-                  svc.logout();
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                },
-                leading: const Icon(Icons.logout_rounded, color: AppTheme.accentRed),
-                title: const Text('Keluar', style: TextStyle(color: AppTheme.accentRed, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ]),
+    if (firebaseUser == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text("Sesi habis, silakan login kembali.", style: TextStyle(color: AppTheme.textSecondary)),
         ),
-      ),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).snapshots(),
+      builder: (context, snapshot) {
+        
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+          );
+        }
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          Map<String, dynamic>? dataMentah = snapshot.data!.data() as Map<String, dynamic>?;
+
+          if (dataMentah == null) {
+            return const Scaffold(body: Center(child: Text("Data kosong")));
+          }
+
+          final dataTerbaru = MahasiswaModel.fromFirestore(snapshot.data!.id, dataMentah);
+
+          int totalJamWajib = dataMentah['total_jam_kompen'] ?? 0;
+          int sisaJam = dataMentah['sisa_jam_kompen'] ?? 0;
+          
+          int totalJamSelesai = totalJamWajib - sisaJam;
+          if (totalJamSelesai < 0) totalJamSelesai = 0; 
+          
+          bool sudahLunas = sisaJam == 0;
+
+          return GradientBackground(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(children: [
+                  const SizedBox(height: 20),
+                  
+                  // Avatar
+                  Container(
+                    width: 88, height: 88,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient, 
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.4), blurRadius: 20)]
+                    ),
+                    child: Center(
+                      child: Text(
+                        dataTerbaru.nama.isNotEmpty ? dataTerbaru.nama[0] : 'U', 
+                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white)
+                      )
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    dataTerbaru.nama.isNotEmpty ? dataTerbaru.nama : 'Nama Tidak Ditemukan', 
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700), 
+                    textAlign: TextAlign.center
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  StatusBadge(
+                    label: dataTerbaru.nama.isNotEmpty ? 'Mahasiswa' : 'User', 
+                    color: AppTheme.accent
+                  ),
+                  const SizedBox(height: 4),
+                  Text(dataTerbaru.nim, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  
+                  const SizedBox(height: 28),
+                  
+                  _RekapRow(
+                    totalJamSelesai: totalJamSelesai,
+                    totalJamWajib: totalJamWajib,
+                    sisaJam: sisaJam,
+                    sudahLunas: sudahLunas,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 1. MENU ITEM DENGAN JUMLAH DINAMIS MENGGUNAKAN FUTURE / STREAM AGREGAT SECARA LANGSUNG
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('pengajuan').where('mahasiswaId', isEqualTo: dataTerbaru.id).snapshots(),
+                    builder: (context, s) => _menuItem(
+                      Icons.assignment_outlined, 
+                      'Riwayat Kompen', 
+                      subtitle: '${s.data?.docs.length ?? 0} pengajuan'
+                    ),
+                  ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: dataTerbaru.id).where('sudahDibaca', isEqualTo: false).snapshots(),
+                    builder: (context, s) => _menuItem(
+                      Icons.notifications_outlined, 
+                      'Notifikasi', 
+                      subtitle: '${s.data?.docs.length ?? 0} belum dibaca'
+                    ),
+                  ),
+                  
+                  _menuItem(Icons.help_outline_rounded, 'Bantuan & FAQ'),
+                  _menuItem(Icons.info_outline_rounded, 'Tentang Aplikasi'),
+                  const SizedBox(height: 16),
+                  
+                  // Tombol Keluar terhubung langsung ke AuthController
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentRed.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.accentRed.withOpacity(0.3)),
+                    ),
+                    child: ListTile(
+                      onTap: () async {
+                        // Jalankan fungsi logout resmi milik AuthController
+                        await AuthController().logoutUser();
+                        if (context.mounted) {
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                        }
+                      },
+                      leading: const Icon(Icons.logout_rounded, color: AppTheme.accentRed),
+                      title: const Text('Keluar', style: TextStyle(color: AppTheme.accentRed, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          );
+        }
+
+        return const Scaffold(
+          body: Center(child: Text("Dokumen profile tidak ditemukan di database.")),
+        );
+      },
     );
   }
 
-  Widget _RekapRow({required dynamic rekap}) {
+  Widget _RekapRow({
+    required int totalJamSelesai,
+    required int totalJamWajib,
+    required int sisaJam,
+    required bool sudahLunas,
+  }) {
     return Row(children: [
-      Expanded(child: _statBox('${rekap.totalJamSelesai}', 'Jam Selesai', AppTheme.accentGreen)),
+      Expanded(child: _statBox('$totalJamSelesai', 'Jam Selesai', AppTheme.accentGreen)),
       const SizedBox(width: 10),
-      Expanded(child: _statBox('${rekap.totalJamWajib}', 'Jam Wajib', AppTheme.accent)),
+      Expanded(child: _statBox('$totalJamWajib', 'Jam Wajib', AppTheme.accent)),
       const SizedBox(width: 10),
-      Expanded(child: _statBox('${rekap.sisaJam}', 'Jam Sisa', rekap.sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
+      Expanded(child: _statBox('$sisaJam', 'Jam Sisa', sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
     ]);
   }
 
