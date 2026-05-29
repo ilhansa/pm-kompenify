@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../utils/app_theme.dart';
-import '../models/models.dart';
+import '/utils/app_theme.dart';
+import '/models/models.dart';
 
 // ─── Gradient Background ────────────────────────────────────────────────────
 class GradientBackground extends StatelessWidget {
