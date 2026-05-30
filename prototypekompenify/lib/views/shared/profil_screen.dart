@@ -4,6 +4,7 @@ import '../../controllers/data_service.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import '../auth/login_screen.dart';
+import '../../models/user_model.dart'; // Import UserModel baru
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
@@ -11,8 +12,14 @@ class ProfilScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
-    final user = svc.currentUser!;
-    final rekap = svc.getRekap(user.id);
+    final user = svc.currentUser;
+    
+    if (user == null) return const SizedBox();
+    
+    // Konversi user.id ke String untuk sinkronisasi ke data statis cadangan
+    final userIdStr = user.id.toString();
+    final rekap = svc.getRekap(userIdStr);
+    final isMahasiswa = user.role == UserRole.mahasiswa;
 
     return GradientBackground(
       child: SafeArea(
@@ -25,24 +32,35 @@ class ProfilScreen extends StatelessWidget {
               width: 88, height: 88,
               decoration: BoxDecoration(gradient: AppTheme.primaryGradient, shape: BoxShape.circle,
                 boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.4), blurRadius: 20)]),
-              child: Center(child: Text(user.nama[0], style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white))),
+              // Ganti .nama menjadi .name
+              child: Center(child: Text(user.name.isNotEmpty ? user.name[0] : 'U', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 16),
-            Text(user.nama, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+            // Ganti .nama menjadi .name
+            Text(user.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
             const SizedBox(height: 4),
-            StatusBadge(label: user.roleLabel, color: AppTheme.accent),
+            // Mengubah nama enum role menjadi huruf kapital depannya untuk label
+            StatusBadge(label: user.role.name.toUpperCase(), color: AppTheme.accent),
             const SizedBox(height: 4),
-            Text(user.nim, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-            if (user.prodi != null) Text(user.prodi!, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+            // Ganti .nim menjadi .username
+            Text(user.username, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            if (isMahasiswa && user.mahasiswa?.prodi != null) 
+              Text(user.mahasiswa!.prodi!, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
 
             const SizedBox(height: 28),
-            // Rekap stat
-            _RekapRow(rekap: rekap),
-            const SizedBox(height: 24),
+            // Rekap stat -> HANYA DIPERLIHATKAN JIKA USER ADALAH MAHASISWA
+            if (isMahasiswa) ...[
+              _RekapRow(rekap: rekap, totalWajib: user.mahasiswa?.totalJamKompen, sisaJam: user.mahasiswa?.sisaJamKompen),
+              const SizedBox(height: 24),
+            ],
 
             // Menu list
-            _menuItem(Icons.assignment_outlined, 'Riwayat Kompen', subtitle: '${svc.getPengajuan(mahasiswaId: user.id).length} pengajuan'),
-            _menuItem(Icons.notifications_outlined, 'Notifikasi', subtitle: '${svc.getUnreadCount(user.id)} belum dibaca'),
+            if (isMahasiswa)
+              _menuItem(Icons.assignment_outlined, 'Riwayat Kompen', subtitle: '${svc.getPengajuan(mahasiswaId: userIdStr).length} pengajuan')
+            else
+              _menuItem(Icons.assignment_outlined, 'Tugas Ditangani', subtitle: '${svc.getAssignments(dosenId: userIdStr).length} dibuat'),
+              
+            _menuItem(Icons.notifications_outlined, 'Notifikasi', subtitle: '${svc.getUnreadCount(userIdStr)} belum dibaca'),
             _menuItem(Icons.help_outline_rounded, 'Bantuan & FAQ'),
             _menuItem(Icons.info_outline_rounded, 'Tentang Aplikasi'),
             const SizedBox(height: 16),
@@ -67,13 +85,19 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  Widget _RekapRow({required dynamic rekap}) {
+  Widget _RekapRow({required dynamic rekap, int? totalWajib, int? sisaJam}) {
+    // Ambil data asli dari database Laravel jika ada, kalau null pakai data fallback statis
+    final displayTotalWajib = totalWajib ?? rekap.totalJamWajib;
+    final displaySisaJam = sisaJam ?? rekap.sisaJam;
+    final displaySelesai = displayTotalWajib - displaySisaJam;
+    final sudahLunas = displaySisaJam <= 0;
+
     return Row(children: [
-      Expanded(child: _statBox('${rekap.totalJamSelesai}', 'Jam Selesai', AppTheme.accentGreen)),
+      Expanded(child: _statBox('$displaySelesai', 'Jam Selesai', AppTheme.accentGreen)),
       const SizedBox(width: 10),
-      Expanded(child: _statBox('${rekap.totalJamWajib}', 'Jam Wajib', AppTheme.accent)),
+      Expanded(child: _statBox('$displayTotalWajib', 'Jam Wajib', AppTheme.accent)),
       const SizedBox(width: 10),
-      Expanded(child: _statBox('${rekap.sisaJam}', 'Jam Sisa', rekap.sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
+      Expanded(child: _statBox('$displaySisaJam', 'Jam Sisa', sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
     ]);
   }
 

@@ -50,6 +50,8 @@ class KaprodiDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
     final user = svc.currentUser!;
+    
+    // Memanggil pengajuan statis tanpa filter ID (untuk kaprodi melihat global)
     final allPengajuan = svc.getPengajuan();
     final menunggu = allPengajuan.where((p) => p.status == KompenStatus.disetujuiDosen).length;
     final lunas = allPengajuan.where((p) => p.status == KompenStatus.lunas).length;
@@ -62,8 +64,9 @@ class KaprodiDashboard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Halo, ${user.nama.split(' ').first}! 👋', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                Text('Kaprodi | ${user.prodi ?? ''}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                // 1. Ganti .nama menjadi .name sesuai UserModel REST API Laravel
+                Text('Halo, ${user.name.split(' ').first}! 👋', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                const Text('Kaprodi', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
               ])),
               IconButton(
                 icon: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(12)),

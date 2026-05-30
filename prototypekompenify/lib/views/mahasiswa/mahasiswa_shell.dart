@@ -29,8 +29,11 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
 
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<DataService>().getUnreadCount(
-      context.read<DataService>().currentUser?.id ?? '',
+    final dataSvc = context.watch<DataService>();
+    
+    // 1. Konversi currentUser?.id ke String menggunakan .toString() agar singkron dengan fungsi statis
+    final unread = dataSvc.getUnreadCount(
+      dataSvc.currentUser?.id != null ? dataSvc.currentUser!.id.toString() : '',
     );
 
     return Scaffold(

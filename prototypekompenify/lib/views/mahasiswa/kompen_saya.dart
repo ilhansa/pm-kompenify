@@ -14,7 +14,8 @@ class KompenSayaScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
     final user = svc.currentUser!;
-    final list = svc.getPengajuan(mahasiswaId: user.id);
+    // 1. Tambahkan .toString() karena getPengajuan meminta parameter String
+    final list = svc.getPengajuan(mahasiswaId: user.id.toString());
 
     return GradientBackground(
       child: SafeArea(
@@ -52,7 +53,8 @@ class KompenDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
-    final p = svc.getPengajuan(mahasiswaId: pengajuan.mahasiswaId)
+    // 2. Tambahkan .toString() pada mahasiswaId saat menyaring data terbaru
+    final p = svc.getPengajuan(mahasiswaId: pengajuan.mahasiswaId.toString())
         .firstWhere((x) => x.id == pengajuan.id, orElse: () => pengajuan);
 
     return Scaffold(
@@ -77,10 +79,12 @@ class KompenDetailScreen extends StatelessWidget {
               child: Row(children: [
                 Icon(_statusIcon(p.status), color: p.statusColor, size: 28),
                 const SizedBox(width: 12),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(p.statusLabel, style: TextStyle(color: p.statusColor, fontWeight: FontWeight.w700, fontSize: 16)),
-                  Text(_statusDesc(p.status), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                ]),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(p.statusLabel, style: TextStyle(color: p.statusColor, fontWeight: FontWeight.w700, fontSize: 16)),
+                    Text(_statusDesc(p.status), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                  ]),
+                ),
               ]),
             ),
             const SizedBox(height: 20),
@@ -234,7 +238,8 @@ class KompenDetailScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 100, child: Text('$k', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12))),
+        Spacer(flex: 0),
+        SizedBox(width: 100, child: Text(k, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12))),
         const Text(': ', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         Expanded(child: Text(v, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
       ]),

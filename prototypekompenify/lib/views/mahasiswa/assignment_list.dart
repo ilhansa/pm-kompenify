@@ -71,7 +71,8 @@ class _AssignmentListScreenState extends State<AssignmentListScreen> {
                   itemCount: assignments.length,
                   itemBuilder: (ctx, i) {
                     final a = assignments[i];
-                    final sudahDaftar = a.mahasiswaTerdaftar.contains(svc.currentUser?.id);
+                    // Konversi user.id ke String agar sinkron saat mengecek list pendaftar
+                    final sudahDaftar = a.mahasiswaTerdaftar.contains(svc.currentUser?.id.toString());
                     return AssignmentCard(
                       assignment: a,
                       onTap: () => _showDetail(context, a),
@@ -126,13 +127,15 @@ class _AssignmentListScreenState extends State<AssignmentListScreen> {
             onPressed: () {
               final svc = context.read<DataService>();
               final user = svc.currentUser!;
-              final ok = svc.pilihAssignment(a.id, user.id);
+              
+              // 1. Konversi user.id ke String untuk dikirim ke logika internal statis
+              final ok = svc.pilihAssignment(a.id, user.id.toString());
               if (ok) {
                 svc.addPengajuan(PengajuanKompen(
                   id: const Uuid().v4(),
-                  mahasiswaId: user.id,
-                  mahasiswaNama: user.nama,
-                  mahasiswaNim: user.nim,
+                  mahasiswaId: user.id.toString(), // Konversi ke String
+                  mahasiswaNama: user.name,         // Ganti .nama menjadi .name
+                  mahasiswaNim: user.username,      // Ganti .nim menjadi .username
                   assignmentId: a.id,
                   assignmentJudul: a.judul,
                   dosenId: a.dosenId,

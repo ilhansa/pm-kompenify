@@ -28,7 +28,7 @@ class AdminDashboard extends StatelessWidget {
             Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Halo, Admin! 👋', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                Text(user.nama, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                Text(user.name, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
               ]),
               const Spacer(),
               IconButton(

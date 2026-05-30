@@ -13,8 +13,10 @@ class MahasiswaDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
     final user = svc.currentUser!;
-    final rekap = svc.getRekap(user.id);
-    final pengajuan = svc.getPengajuan(mahasiswaId: user.id);
+    
+    // 1. Tambahkan .toString() karena fungsi statis meminta parameter String
+    final rekap = svc.getRekap(user.id.toString());
+    final pengajuan = svc.getPengajuan(mahasiswaId: user.id.toString());
     final recent = pengajuan.take(3).toList();
 
     return GradientBackground(
@@ -30,12 +32,15 @@ class MahasiswaDashboard extends StatelessWidget {
                   gradient: AppTheme.primaryGradient,
                   shape: BoxShape.circle,
                 ),
-                child: Center(child: Text(user.nama[0], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+                // Ganti .nama menjadi .name sesuai UserModel REST API Laravel
+                child: Center(child: Text(user.name.isNotEmpty ? user.name[0] : 'M', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white))),
               ),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Halo, ${user.nama.split(' ').first}! 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                Text(user.nim, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                // Ganti .nama menjadi .name
+                Text('Halo, ${user.name.split(' ').first}! 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                // Ganti .nim menjadi .username
+                Text(user.username, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
               ]),
               const Spacer(),
               Container(
@@ -52,8 +57,8 @@ class MahasiswaDashboard extends StatelessWidget {
             ]),
             const SizedBox(height: 24),
 
-            // Rekap Card
-            _RekapCard(rekap: rekap),
+            // Rekap Card (Menampilkan data gabungan statis & dinamis Laravel)
+            _RekapCard(rekap: rekap, totalWajib: user.mahasiswa?.totalJamKompen, sisaJam: user.mahasiswa?.sisaJamKompen),
             const SizedBox(height: 24),
 
             // Quick Stats
@@ -90,11 +95,25 @@ class MahasiswaDashboard extends StatelessWidget {
 
 class _RekapCard extends StatelessWidget {
   final RekapKompen rekap;
-  const _RekapCard({required this.rekap});
+  final int? totalWajib;
+  final int? sisaJam;
+
+  const _RekapCard({
+    required this.rekap,
+    this.totalWajib,
+    this.sisaJam,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final pct = rekap.persentase.clamp(0.0, 1.0);
+    // Ambil sisa dan total jam dari Laravel jika tersedia, jika null pakai data fallback rekap statis
+    final displayTotalWajib = totalWajib ?? rekap.totalJamWajib;
+    final displaySisaJam = sisaJam ?? rekap.sisaJam;
+    final displaySelesai = displayTotalWajib - displaySisaJam;
+    
+    // Hitung persentase progress
+    double pct = displayTotalWajib > 0 ? (displaySelesai / displayTotalWajib) : 0.0;
+    pct = pct.clamp(0.0, 1.0);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -124,11 +143,11 @@ class _RekapCard extends StatelessWidget {
         const SizedBox(height: 12),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${rekap.totalJamSelesai} Jam', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+            Text('$displaySelesai Jam', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
             const Text('sudah diselesaikan', style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('${rekap.totalJamWajib} Jam', style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600)),
+            Text('$displayTotalWajib Jam', style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600)),
             const Text('total wajib', style: TextStyle(color: Colors.white54, fontSize: 11)),
           ]),
         ]),
