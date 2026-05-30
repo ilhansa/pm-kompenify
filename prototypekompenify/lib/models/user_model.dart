@@ -1,4 +1,5 @@
 import 'mahasiswa_model.dart';
+import 'dosen_model.dart';
 
 // Enum yang disesuaikan dengan role yang ada di Laravel
 enum UserRole { admin, mahasiswa, dosen, kaprodi }
@@ -8,7 +9,9 @@ class UserModel {
   final String name;
   final String username;
   final UserRole role;
-  final MahasiswaModel? mahasiswa; // Relasi ke detail data mahasiswa jika role-nya 'mhs'
+  final MahasiswaModel?
+  mahasiswa; // Relasi ke detail data mahasiswa jika role-nya 'mhs'
+  final DosenModel? dosen;
 
   UserModel({
     required this.id,
@@ -16,6 +19,7 @@ class UserModel {
     required this.username,
     required this.role,
     this.mahasiswa,
+    this.dosen,
   });
 
   // Fungsi pembantu untuk mengubah String dari database menjadi Enum di Flutter
@@ -42,9 +46,10 @@ class UserModel {
       username: json['username'],
       role: _parseRole(json['role']),
       // Jika di dalam JSON terdapat data object 'mahasiswa', maka kita parse ke MahasiswaModel
-      mahasiswa: json['mahasiswa'] != null 
-          ? MahasiswaModel.fromJson(json['mahasiswa']) 
+      mahasiswa: json['mahasiswa'] != null
+          ? MahasiswaModel.fromJson(json['mahasiswa'])
           : null,
+      dosen: json['dosen'] != null ? DosenModel.fromJson(json['dosen']) : null,
     );
   }
 }

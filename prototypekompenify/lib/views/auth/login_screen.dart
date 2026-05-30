@@ -3,12 +3,10 @@ import 'package:provider/provider.dart';
 import '../../controllers/data_service.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
-import '../../models/models.dart';
 import '../admin/admin_shell.dart';
 import '../mahasiswa/mahasiswa_shell.dart';
 import '../dosen/dosen_shell.dart';
 import '../kaprodi/kaprodi_shell.dart';
-// lib/views/auth/login_screen.dart
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -48,12 +46,11 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // Ganti fungsi _login() lama kamu di login_screen.dart dengan ini:
+  // ─── LOGIKA LOGIN REST API (TETAP DIPERTAHANKAN) ───
   Future<void> _login() async {
     final username = _nimCtrl.text.trim();
     final password = _passCtrl.text;
 
-    // Validasi awal di sisi client/HP terlebih dahulu
     if (username.isEmpty || password.isEmpty) {
       setState(() => _error = 'NIM/NIP dan password tidak boleh kosong.');
       return;
@@ -64,45 +61,37 @@ class _LoginScreenState extends State<LoginScreen>
       _error = null;
     });
 
-    // 1. PANGGIL CONTROLLER (DATA SERVICE) UNTUK EKSEKUSI LOGIN
     final dataSvc = context.read<DataService>();
     final String? errorResult = await dataSvc.loginRestApi(username, password);
 
     if (!mounted) return;
     setState(() => _loading = false);
 
-    // 2. JIKA ERROR RESULT NULL, ARTINYA LOGIN BERHASIL KONEK KE MYSQL LARAVEL
     if (errorResult == null) {
-      final role = dataSvc.currentUser!.role;
-      Widget dest;
+      final user = dataSvc.currentUser;
+      
+      if (user != null) {
+        // Konversi Enum menjadi string kecil untuk pengecekan aman
+        final roleName = user.role.name.toLowerCase();
 
-      // Mengarahkan halaman berdasarkan Enum Role dari data user asli di MySQL
-      switch (role) {
-        case UserRole.mahasiswa:
-          dest = const MahasiswaShell();
-          break;
-        case UserRole.dosen:
-          dest = const DosenShell();
-          break;
-        case UserRole.kaprodi:
-          dest = const KaprodiShell();
-          break;
-        default: // <-- Menyelamatkan UserRole.admin atau role lain yang belum terdaftar
-          dest = const MahasiswaShell();
-          break;
+        if (roleName == 'mhs' || roleName == 'mahasiswa') {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MahasiswaShell()));
+        } else if (roleName == 'dosen') {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DosenShell()));
+        } else if (roleName == 'kaprodi') {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const KaprodiShell()));
+        } else if (roleName == 'admin') {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminShell()));
+        } else {
+          setState(() => _error = 'Hak akses tidak dikenali oleh sistem (Role: $roleName).');
+        }
       }
-
-      // Pindah halaman dengan aman
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => dest),
-      );
     } else {
-      // 3. JIKA GAGAL, TAMPILKAN PESAN ERROR DARI BACKEND
       setState(() => _error = errorResult);
     }
   }
 
+  // ─── TAMPILAN UI ASLI KAMU (DIKEMBALIKAN) ───
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen>
                 child: Column(
                   children: [
                     const SizedBox(height: 60),
-                    // Logo
+                    // Logo Topi Toga
                     Container(
                       width: 80,
                       height: 80,
@@ -177,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                     const SizedBox(height: 48),
-                    // Form card
+                    // Form card Asli
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(

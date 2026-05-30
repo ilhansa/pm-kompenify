@@ -48,6 +48,7 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
           selectedIndex: _idx,
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: [
             const NavigationDestination(
               icon: Icon(Icons.home_outlined),
