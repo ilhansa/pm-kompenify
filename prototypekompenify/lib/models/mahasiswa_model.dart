@@ -1,6 +1,6 @@
 class MahasiswaModel {
   final int id;
-  final int userId;
+  final String userId;
   final String nim;
   final String? prodi;
   final int totalJamKompen;

@@ -16,7 +16,7 @@ class DosenModel {
   factory DosenModel.fromJson(Map<String, dynamic> json) {
     return DosenModel(
       id: json['id'] ?? 0,
-      userId: json['user_id'] ?? 0,
+      userId: json['user_id'] ?? '',
       nip: json['nip'] ?? '',
       prodi: json['prodi'],
       signature_base64: json['signature_base64'],
