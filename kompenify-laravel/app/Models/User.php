@@ -13,28 +13,52 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * Pengaturan UUID agar tidak dianggap Integer Auto-Increment oleh Laravel
      */
-    protected $fillable = ['name', 'username', 'password', 'role'];
+    public $incrementing = false; // Matikan auto-increment angka biasa
+    protected $keyType = 'string'; // Beritahu Laravel kalau primary key berupa string (UUID)
 
-    // Relasi ke Mahasiswa
-    public function mahasiswa()
+    /**
+     * The attributes that are mass assignable.
+     * Kolom yang diizinkan untuk diisi secara massal (Mass Assignment).
+     */
+    protected $fillable = [
+        'id',        // Wajib dimasukkan karena id UUID diisi manual dari aplikasi
+        'nimNip',    // Diubah dari 'username' sesuai Class Diagram
+        'nama',      // Diubah dari 'name' sesuai Class Diagram
+        'password',  // Tetap password
+        'role'       // Tetap role (RoleEnum)
+    ];
+
+    /**
+     * Relasi ke Admin (Sesuai panah Extends di Class Diagram)
+     */
+    public function admin()
     {
-        return $this->hasOne(Mahasiswa::class);
+        // Relasi One-to-One: id admin merujuk ke id user
+        return $this->hasOne(Admin::class, 'id', 'id');
     }
 
-    // Relasi ke Dosen
+    /**
+     * Relasi ke Mahasiswa
+     */
+    public function mahasiswa()
+    {
+        // Menentukan foreign_key 'user_id' secara eksplisit karena kita pakai UUID
+        return $this->hasOne(Mahasiswa::class, 'user_id', 'id');
+    }
+
+    /**
+     * Relasi ke Dosen
+     */
     public function dosen()
     {
-        return $this->hasOne(Dosen::class);
+        // Menentukan foreign_key 'user_id' secara eksplisit karena kita pakai UUID
+        return $this->hasOne(Dosen::class, 'user_id', 'id');
     }
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -43,8 +67,6 @@ class User extends Authenticatable
 
     /**
      * The attributes that should be cast.
-     *
-     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',

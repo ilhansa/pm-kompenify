@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->uuid('id')->primary(); //
-            $table->string('nimNip')->unique(); // <-- PERHATIKAN HURUF BESAR KECILNYA BANG!
-            $table->string('nama'); //
-            $table->string('password'); //
-            $table->string('role'); //
+        Schema::create('admins', function (Blueprint $table) {
+            // Menggunakan foreignUuid karena tabel users menggunakan UUID
+            $table->foreignUuid('id')->primary()->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -26,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('admins');
     }
 };

@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
 // Route untuk Login
-Route::post('/login', [AuthController::class, 'login']);
-
-// Route Terproteksi (Wajib menyertakan Token Bearer hasil login)
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/profile', [AuthController::class, 'getProfile']);
-    Route::post('/logout', [AuthController::class, 'logout']);
+Route::get('/admin/users', function() {
+    return response()->json([
+        'success' => true,
+        'data' => \App\Models\User::orderBy('created_at', 'desc')->get()
+    ], 200);
 });
+Route::post('/admin/users', [\App\Http\Controllers\Api\AuthController::class, 'registerAkun']);
+Route::put('/admin/users/{id}', [AuthController::class, 'editAkun']);
+Route::delete('/admin/users/{id}', [AuthController::class, 'hapusAkun']);
