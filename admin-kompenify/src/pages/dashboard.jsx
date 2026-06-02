@@ -63,14 +63,19 @@ export default function Dashboard() {
     };
 
     // 3. Fungsi: hapusAkun(userId)
-    const handleDelete = async (id) => {
-        if (window.confirm('Apakah Anda yakin ingin menghapus akun ini?')) {
+    const handleDelete = async (id, nama) => {
+        if (window.confirm(`Apakah kamu yakin ingin menghapus akun ${nama}`)) {
             try {
-                await api.delete(`/admin/users/${id}`);
-                setMessage('Akun berhasil dihapus!');
-                fetchUsers();
-            } catch (error) {
-                setMessage('Gagal menghapus akun.');
+                const response = await api.delete(`/admin/users/${id}`);
+
+                if (response.data.success) {
+                    alert('Akun berhasil dihapus dari sistem!');
+                    
+                    fetchUsers();
+                }
+            } catch (err) {
+                console.error(err);
+                alert(err.response?.data?.message || 'Gagal menghapus akun, coba cek terminal Laravel!');
             }
         }
     };
@@ -174,7 +179,10 @@ export default function Dashboard() {
                                                 <button onClick={() => { setIsEditing(true); setFormData({ id: user.id, nimNip: user.nimNip, nama: user.nama, role: user.role }); }} className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">
                                                     Edit
                                                 </button>
-                                                <button onClick={() => handleDelete(user.id)} className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/20 text-xs px-3 py-1.5 rounded-lg font-bold transition">
+                                                <button
+                                                    onClick={() => handleDelete(user.id, user.nama)}
+                                                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-3 py-1 rounded-lg font-semibold transition-colors"
+                                                >
                                                     Hapus
                                                 </button>
                                             </td>

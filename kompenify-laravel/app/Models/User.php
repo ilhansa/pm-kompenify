@@ -40,7 +40,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Relasi ke Mahasiswa
+     * Relasi ke Mahasiswa (Sesuai Class Diagram)
      */
     public function mahasiswa()
     {
@@ -49,12 +49,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Relasi ke Dosen
+     * Relasi ke Dosen (Sesuai Class Diagram)
      */
     public function dosen()
     {
         // Menentukan foreign_key 'user_id' secara eksplisit karena kita pakai UUID
         return $this->hasOne(Dosen::class, 'user_id', 'id');
+    }
+
+    /**
+     * PERBAIKAN: Relasi ke Kaprodi (Sesuai dengan Tabel kaprodis di phpMyAdmin & Class Diagram Extends)
+     */
+    public function kaprodi()
+    {
+        // Menghubungkan kolom user_id di tabel kaprodis ke id di tabel users
+        return $this->hasOne(Kaprodi::class, 'user_id', 'id');
     }
 
     /**
@@ -70,6 +79,6 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'password' => 'hashed', // Password otomatis di-hash aman oleh Laravel 11
     ];
 }
