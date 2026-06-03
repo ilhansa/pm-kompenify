@@ -10,29 +10,18 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-    {
-        Schema::create('kaprodis', function (Blueprint $table) {
-            $table->id(); // ID bawaan tabel kaprodi (Auto Increment biasa)
-            
-            // 1. Kolom user_id (WAJIB pakai tipe uuid karena tabel users pakai UUID)
-            $table->uuid('user_id'); 
-            
-            // 2. Kolom NIP
-            $table->string('nip')->unique(); 
+{
+    Schema::create('kaprodis', function (Blueprint $table) {
+        $table->id(); // Auto-increment untuk primary key
 
-            // 3. (Opsional tapi sangat disarankan) Foreign Key untuk keamanan data
-            // Artinya: Kalau data user dihapus, data kaprodi ini ikut terhapus otomatis (cascade)
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            
-            $table->timestamps();
-        });
-    }
+        // Kolom foreign key untuk menyambung ke tabel users (UUID)
+        $table->foreignUuId('user_id')->constrained('users')->onDelete('cascade');
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('kaprodis');
-    }
+        // Kolom tambahan pelengkap data kaprodi
+        $table->string('nip')->unique();
+        $table->string('tandaTanganPath')->nullable();
+
+        $table->timestamps();
+    });
+}
 };

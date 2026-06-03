@@ -15,20 +15,29 @@ export default function Login() {
         setError('');
         
         try {
-            // Menembak API login backend Laravel
+            // Menembak API login backend Laravel (Gunakan properti state 'username')
             const response = await api.post('/login', { username, password });
 
             if (response.data.success) {
-                // 1. Simpan token autentikasi di browser dengan nama auth_token
+                const user = response.data.user;
+
+                // BARIKADE SAKTI: Filter role tepat setelah sukses API
+                if (user.role !== 'admin') {
+                    setError('Eits! Akun Anda terdeteksi bukan Admin. Halaman ini terlarang!');
+                    return;
+                }
+
+                // 1. Simpan token autentikasi di browser jika beneran lolos sebagai Admin
                 localStorage.setItem('auth_token', response.data.access_token);
                 
                 // 2. Simpan data user untuk dipakai di halaman dashboard nanti
-                localStorage.setItem('user_data', JSON.stringify(response.data.user));
+                localStorage.setItem('user_data', JSON.stringify(user));
 
                 // Pindah ke halaman dashboard setelah sukses login
                 navigate('/dashboard');
             }
         } catch (err) {
+            console.error(err);
             setError(err.response?.data?.message || 'Username atau password salah, Bang!');
         } finally {
             setLoading(false);

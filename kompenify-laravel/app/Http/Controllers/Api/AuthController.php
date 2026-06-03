@@ -118,34 +118,41 @@ class AuthController extends Controller
         'role'     => $request->role ?? 'mhs'
     ]);
 
-    // 3. Masukkan data otomatis ke tabel anak sesuai role aksesnya
+    // 3. Masukkan data otomatis ke tabel anak sesuai role aksesnya dengan rapi
     if ($user->role === 'admin') {
-        DB::table('admins')->insert(['id' => $user->id, 'created_at' => now(), 'updated_at' => now()]);
-    } elseif ($user->role === 'mhs') {
-        DB::table('mahasiswas')->insert([
-            'user_id' => $user->id,
-            'nim' => $user->nimNip,
-            'total_jam_kompen' => 0,
-            'sisa_jam_kompen' => 0,
+        // Admin murni di tabel users, tapi kalau ada tabel master 'admins', samakan id-nya dengan user_id
+        DB::table('admins')->insert([
+            'id'         => $user->id,
             'created_at' => now(),
             'updated_at' => now()
         ]);
+    } elseif ($user->role === 'mhs') {
+        // Sesuai image_f527a9.png: id -> auto_increment, user_id -> UUID dari tabel users
+        DB::table('mahasiswas')->insert([
+            'user_id'          => $user->id,
+            'nim'              => $user->nimNip,
+            'prodi'            => null,
+            'total_jam_kompen' => 0,
+            'sisa_jam_kompen'  => 0,
+            'created_at'       => now(),
+            'updated_at'       => now()
+        ]);
     } elseif ($user->role === 'dosen') {
+        // Sesuai image_f5285b.png: id -> auto_increment (atau id langsung diisi user_id jika relasi 1:1), user_id -> UUID users
         DB::table('dosens')->insert([
-            'id' => \Illuminate\Support\Str::uuid(),
-            'user_id' => $user->id,
-            'nip' => $user->nimNip,
+            'user_id'    => $user->id,
+            'nip'        => $user->nimNip,
             'created_at' => now(),
             'updated_at' => now()
         ]);
     } elseif ($user->role === 'kaprodi') {
+        // Data kaprodi dipisahkan murni dari dosen ke tabel kaprodis
         DB::table('kaprodis')->insert([
-            'id' => \Illuminate\Support\Str::uuid(),
-            'user_id' => $user->id,
-            'nip' => $user->nimNip,
+            'user_id'         => $user->id,
+            'nip'             => $user->nimNip,
             'tandaTanganPath' => null,
-            'created_at' => now(),
-            'updated_at' => now()
+            'created_at'      => now(),
+            'updated_at'      => now()
         ]);
     }
 
@@ -163,21 +170,34 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'User tidak ditemukan.'], 404);
         }
 
+        // Validasi input: password kita bikin 'nullable' artinya boleh kosong jika admin hanya mau ubah Nama/Role saja
         $request->validate([
-            'nimNip' => 'required|unique:users,nimNip,'.$id,
-            'nama'   => 'required',
-            'role'   => 'required|in:mhs,dosen,kaprodi,admin'
+            'nimNip'   => 'required|unique:users,nimNip,'.$id,
+            'nama'     => 'required',
+            'role'     => 'required|in:mhs,dosen,kaprodi,admin',
+            'password' => 'nullable|min:4'
         ]);
 
-        $user->update([
+        // Siapkan data dasar yang mau diupdate
+        $updateData = [
             'nimNip' => $request->nimNip,
             'nama'   => $request->nama,
             'role'   => $request->role
-        ]);
+        ];
+
+        // KONDISI UTAMA: Jika admin mengetik sesuatu di kolom password, kita ikut masukkan ke database
+        if ($request->filled('password')) {
+            $updateData['password'] = $request->password;
+        }
+
+        // Jalankan update ke database MySQL
+        $user->update($updateData);
 
         return response()->json([
             'success' => true,
-            'message' => 'Akun berhasil diperbarui!'
+            'message' => $request->filled('password')
+                ? 'Akun dan password baru berhasil diperbarui'
+                : 'Akun berhasil diperbarui!'
         ], 200);
     }
 
