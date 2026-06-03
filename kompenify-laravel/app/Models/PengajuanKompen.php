@@ -15,7 +15,6 @@ class PengajuanKompen extends Model
         'id',
         'mahasiswa_id',
         'assignment_id',
-        'alasan',
         'status',
     ];
 
