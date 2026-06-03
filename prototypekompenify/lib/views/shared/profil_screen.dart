@@ -18,30 +18,46 @@ class ProfilScreen extends StatelessWidget {
 
     final userIdStr = user.id.toString();
     
-    // Deteksi Role secara dinamis dari Enum model
+    // 📝 1. DETEKSI ROLE SECARA SPESIFIK
     final roleName = user.role.name.toLowerCase();
     final isMahasiswa = roleName == 'mhs' || roleName == 'mahasiswa';
-    final isDosenOrKaprodi = roleName == 'dosen' || roleName == 'kaprodi';
+    final isDosen = roleName == 'dosen';
+    final isKaprodi = roleName == 'kaprodi';
 
-    // Ambil data untuk Mahasiswa
-    final rekap = svc.getRekap(userIdStr);
+    // 📝 2. AMBIL DATA SESUAI ROLE MASING-MASING
+    // -- Data Mahasiswa
+    final rekap = isMahasiswa ? svc.getRekap(userIdStr) : null;
 
-    // Ambil data statistik riwayat untuk Dosen
-    final totalAssignment = svc.getAssignments(dosenId: userIdStr).length;
-    final totalVerifikasi = svc.getPengajuan(dosenId: userIdStr)
-        .where((p) => p.status == KompenStatus.proses)
-        .length;
+    // -- Data Dosen
+    final totalAssignment = isDosen ? svc.getAssignments(dosenId: userIdStr).length : 0;
+    final totalVerifikasi = isDosen 
+        ? svc.getPengajuan(dosenId: userIdStr).where((p) => p.status == KompenStatus.proses).length 
+        : 0;
+
+    // -- Data Kaprodi
+    final kaprodiPending = isKaprodi 
+        ? svc.getPengajuan().where((p) => p.status == KompenStatus.disetujuiDosen).length 
+        : 0;
+    final kaprodiLunas = isKaprodi 
+        ? svc.getPengajuan().where((p) => p.status == KompenStatus.lunas).length 
+        : 0;
 
     return GradientBackground(
       child: SafeArea(
-        // 📝 1. BUNGKUS DENGAN REFRESH INDICATOR DI SINI
         child: RefreshIndicator(
           color: AppTheme.primary,
           backgroundColor: AppTheme.bgCard,
-          // 📝 2. PANGGIL FUNGSI REFRESH SAKTI DARI CONTROLLER
-          onRefresh: () => context.read<DataService>().refreshDataMahasiswa(),
+          // 📝 3. PANGGIL FUNGSI REFRESH SECARA DINAMIS
+          onRefresh: () async {
+            if (isMahasiswa) {
+              await context.read<DataService>().refreshDataMahasiswa();
+            } else if (isDosen) {
+              await context.read<DataService>().refreshDataDosen();
+            } else if (isKaprodi) {
+              await context.read<DataService>().refreshDataKaprodi();
+            }
+          },
           child: SingleChildScrollView(
-            // 📝 3. WAJIB DIKASIH PHYSICS INI BIAR LAYAR BISA DITARIK KE BAWAH
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -84,7 +100,7 @@ class ProfilScreen extends StatelessWidget {
                 const SizedBox(height: 6),
                 StatusBadge(
                   label: user.role.name.toUpperCase(),
-                  color: isMahasiswa ? AppTheme.accent : AppTheme.accentGreen,
+                  color: isMahasiswa ? AppTheme.accent : (isKaprodi ? AppTheme.primary : AppTheme.accentGreen),
                 ),
                 const SizedBox(height: 8),
                 
@@ -97,18 +113,23 @@ class ProfilScreen extends StatelessWidget {
                 // PROGRAM STUDI KONDISIONAL
                 if (isMahasiswa && user.mahasiswa?.prodi != null)
                   Text(user.mahasiswa!.prodi!, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12))
-                else if (isDosenOrKaprodi && user.dosen?.prodi != null)
+                else if (isDosen && user.dosen?.prodi != null)
                   Text(user.dosen!.prodi!, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
 
                 const SizedBox(height: 28),
 
                 // ─── KARTU STATISTIK KONDISIONAL BERDASARKAN ROLE ───
-                if (isMahasiswa) ...[
+                if (isMahasiswa && rekap != null) ...[
                   _buildMahasiswaRekap(rekap),
-                ] else if (isDosenOrKaprodi) ...[
+                ] else if (isDosen) ...[
                   _buildDosenRekap(totalAssignment, totalVerifikasi),
                   const SizedBox(height: 14),
                   _buildSignatureCard(user.dosen?.signature_base64),
+                ] else if (isKaprodi) ...[
+                  // 📝 TAMPILAN STATISTIK KHUSUS KAPRODI
+                  _buildKaprodiRekap(kaprodiPending, kaprodiLunas),
+                  const SizedBox(height: 14),
+                  _buildSignatureCard(null), // Diasumsikan Kaprodi siap TTD
                 ],
 
                 const SizedBox(height: 24),
@@ -117,11 +138,15 @@ class ProfilScreen extends StatelessWidget {
                 if (isMahasiswa) ...[
                   _menuItem(Icons.assignment_outlined, 'Riwayat Kompen Saya',
                       subtitle: '${svc.getPengajuan(mahasiswaId: userIdStr).length} pengajuan'),
-                ] else if (isDosenOrKaprodi) ...[
+                ] else if (isDosen) ...[
                   _menuItem(Icons.assignment_turned_in_outlined, 'Daftar Assignment Saya',
                       subtitle: '$totalAssignment tugas aktif di sistem'),
                   _menuItem(Icons.pending_actions_rounded, 'Menunggu Verifikasi',
                       subtitle: '$totalVerifikasi berkas kompen masuk'),
+                ] else if (isKaprodi) ...[
+                  // 📝 MENU KHUSUS KAPRODI
+                  _menuItem(Icons.verified_outlined, 'Approval Akhir Kompen',
+                      subtitle: '$kaprodiPending berkas menunggu persetujuan'),
                 ],
 
                 _menuItem(Icons.notifications_outlined, 'Notifikasi',
@@ -161,7 +186,8 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  // Row Statistik Khusus Mahasiswa
+  // --- Widget Bantuan ---
+
   Widget _buildMahasiswaRekap(dynamic rekap) {
     final displayTotalWajib = rekap.totalJamWajib;
     final displaySisaJam = rekap.sisaJam;
@@ -179,7 +205,6 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  // Row Statistik Khusus Dosen
   Widget _buildDosenRekap(int assignmentCount, int pendingVerification) {
     return Row(
       children: [
@@ -196,9 +221,25 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  // Indikator Spesimen E-TTD Digital Khusus Dosen
+  // 📝 KOTAK STATISTIK KHUSUS KAPRODI
+  Widget _buildKaprodiRekap(int pendingCount, int lunasCount) {
+    return Row(
+      children: [
+        Expanded(
+          child: _statBox(
+            '$pendingCount', 
+            'Perlu Approval', 
+            pendingCount > 0 ? AppTheme.accentOrange : AppTheme.accentGreen
+          )
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: _statBox('$lunasCount', 'Selesai & Lunas', AppTheme.accent)),
+      ],
+    );
+  }
+
   Widget _buildSignatureCard(String? base64Signature) {
-    final hasSignature = base64Signature != null && base64Signature.isNotEmpty;
+    final hasSignature = base64Signature != null && base64Signature.isNotEmpty || base64Signature == null;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

@@ -5,42 +5,81 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\Mahasiswa;
 use App\Models\Dosen;
+use App\Models\Kaprodi; // 📝 Panggil model Kaprodi
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str; // 📝 Wajib dipanggil untuk fitur UUID
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Buat Akun Mahasiswa
-        $mhsUser = User::create([
-            'name' => 'Ilsa Ilmansyah',
-            'username' => '244107060072', // Kita samakan username dengan NIM biar gampang login
+        // ==========================================
+        // 1. BUAT AKUN MAHASISWA
+        // ==========================================
+        $mhsId = Str::uuid(); // Generate UUID
+        
+        User::create([
+            'id'       => $mhsId,
+            'nama'     => 'Ilsa Ilmansyah', // name -> nama
+            'nimNip'   => '244107060072',   // username -> nimNip
             'password' => Hash::make('password123'),
-            'role' => 'mhs'
+            'role'     => 'mhs'
         ]);
 
-        // Extend/Hubungkan ke tabel mahasiswa + Tambah Data Jam Kompen
         Mahasiswa::create([
-            'user_id' => $mhsUser->id,
-            'nim' => '244107060072',
-            'prodi' => 'Sistem Informasi Bisnis',
-            'total_jam_kompen' => 10, // Contoh: Ilsa punya tunggakan 10 jam
-            'sisa_jam_kompen' => 10,  // Karena belum dikerjakan, sisanya masih 10 jam
+            'user_id' => $mhsId,
+            'nim'     => '244107060072', // Samakan dengan nimNip biar rapi
+            'prodi'   => 'D4 Sistem Informasi Bisnis',
+            'total_jam_kompen' => 10,
+            'sisa_jam_kompen'  => 10,
         ]);
 
-        // 2. Buat Akun Dosen
-        $dosenUser = User::create([
-            'name' => 'Pak Dosen Kompen',
-            'username' => '198501012020', // Pakai NIP untuk username
-            'password' => Hash::make('dosen123'),
-            'role' => 'dosen'
+        // ==========================================
+        // 2. BUAT AKUN DOSEN
+        // ==========================================
+        $dosenId = Str::uuid();
+        
+        User::create([
+            'id'       => $dosenId,
+            'nama'     => 'Pak Dosen Kompen',
+            'nimNip'   => 'NIP001', // Samakan dengan tombol Quick Demo Flutter
+            'password' => Hash::make('password123'), // Samakan password biar gampang
+            'role'     => 'dosen'
         ]);
 
-        // Extend/Hubungkan ke tabel dosen (Dosen tidak punya kolom jam kompen)
         Dosen::create([
-            'user_id' => $dosenUser->id,
-            'nip' => '198501012020'
+            'user_id' => $dosenId,
+            'nip'     => 'NIP001'
+        ]);
+
+        // ==========================================
+        // 3. BUAT AKUN KAPRODI
+        // ==========================================
+        $kaprodiId = Str::uuid();
+        
+        User::create([
+            'id'       => $kaprodiId,
+            'nama'     => 'Bapak Kaprodi JTI',
+            'nimNip'   => 'KAPRODI01',
+            'password' => Hash::make('password123'),
+            'role'     => 'kaprodi'
+        ]);
+
+        Kaprodi::create([
+            'user_id' => $kaprodiId,
+            'nip'     => 'KAPRODI01'
+        ]);
+
+        // ==========================================
+        // 4. BUAT AKUN ADMIN
+        // ==========================================
+        User::create([
+            'id'       => Str::uuid(),
+            'nama'     => 'Admin Jurusan',
+            'nimNip'   => 'ADMIN001',
+            'password' => Hash::make('password123'),
+            'role'     => 'admin'
         ]);
     }
 }

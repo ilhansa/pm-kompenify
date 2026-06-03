@@ -182,8 +182,9 @@ class DataService extends ChangeNotifier {
 
     try {
       // 1. Definisikan BASE_URL Ngrok kamu (bisa hardcode atau ambil dari .env)
-        final String _baseUrl = dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';
- // <-- Ganti pakai URL Ngrok aktifmu, Bos!
+      final String _baseUrl =
+          dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';
+      // <-- Ganti pakai URL Ngrok aktifmu, Bos!
 
       // 2. Suruh _authService mengambil data JSON profil terbaru dari Laravel
       final responseData = await _authService.getLatestProfile(
@@ -212,15 +213,44 @@ class DataService extends ChangeNotifier {
   Future<void> refreshDataDosen() async {
     if (_token == null) return;
     try {
-        final String _baseUrl = dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';// Sesuaikan URL Ngrok kamu
-      final responseData = await _authService.getLatestProfile(_token!, _baseUrl);
+      final String _baseUrl =
+          dotenv.env['BASE_URL'] ??
+          'http://127.0.0.1:8000/api'; // Sesuaikan URL Ngrok kamu
+      final responseData = await _authService.getLatestProfile(
+        _token!,
+        _baseUrl,
+      );
 
       if (responseData != null && responseData['success'] == true) {
         _currentUser = api.UserModel.fromJson(responseData['user']);
-        notifyListeners(); 
+        notifyListeners();
       }
     } catch (e) {
       debugPrint("Gagal sinkronisasi dosen: $e");
+    }
+  }
+
+  // ===========================================================================
+  // FUNGSI REFRESH UNTUK KAPRODI
+  // ===========================================================================
+  Future<void> refreshDataKaprodi() async {
+    if (_token == null) return;
+    try {
+      final String _baseUrl =
+          dotenv.env['BASE_URL'] ??
+          'http://127.0.0.1:8000/api'; // Sesuaikan URL Ngrok kamu
+
+      final responseData = await _authService.getLatestProfile(
+        _token!,
+        _baseUrl,
+      );
+
+      if (responseData != null && responseData['success'] == true) {
+        _currentUser = api.UserModel.fromJson(responseData['user']);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Gagal sinkronisasi kaprodi: $e");
     }
   }
 }

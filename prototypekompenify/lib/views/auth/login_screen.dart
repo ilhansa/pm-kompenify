@@ -195,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 24),
                           TextFormField(
                             controller: _nimCtrl,
-                            keyboardType: TextInputType.number,
+                            keyboardType: TextInputType.text,
                             style: const TextStyle(color: AppTheme.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'NIM / NIP',
