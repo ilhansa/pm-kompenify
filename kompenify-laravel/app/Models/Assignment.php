@@ -9,12 +9,11 @@ class Assignment extends Model
 {
     use HasFactory;
 
-    // 📝 1. TAMBAHKAN DUA BARIS INI WAJIB!
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id',             // Pastikan id masuk ke fillable
+        'id',
         'judul',
         'deskripsi',
         'jam_kompen',
