@@ -1,20 +1,28 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
 
-// Route untuk memproses Login form React
+/*
+|--------------------------------------------------------------------------
+| API Routes Utama - E-Kompenify
+|--------------------------------------------------------------------------
+*/
+
+// 1. GERBANG PUBLIK (Bisa diakses tanpa login / tanpa token)
 Route::post('/login', [AuthController::class, 'login']);
 
-// Route untuk Menampilkan Daftar User di Tabel Dashboard
-Route::get('/admin/users', function() {
-    return response()->json([
-        'success' => true,
-        'data' => \App\Models\User::orderBy('created_at', 'desc')->get()
-    ], 200);
-});
 
-// Route Aksi Kelola Akun (Tambah, Edit, Hapus)
-Route::post('/admin/users', [AuthController::class, 'registerAkun']);
-Route::put('/admin/users/{id}', [AuthController::class, 'editAkun']);
-Route::delete('/admin/users/{id}', [AuthController::class, 'hapusAkun']);
+// 2. GERBANG PRIVAT (Wajib Lolos Autentikasi & Bawa Token Sanctum)
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Fitur Logout Global
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // OTOMATIS MEMANGGIL SEMUA FILE API YANG KAMU BUAT TADI
+    require __DIR__ . '/api/admin_api.php';
+    require __DIR__ . '/api/mahasiswa_api.php';
+    require __DIR__ . '/api/dosen_api.php';
+    require __DIR__ . '/api/kaprodi_api.php';
+
+});
