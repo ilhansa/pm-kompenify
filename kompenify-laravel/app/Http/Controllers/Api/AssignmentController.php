@@ -5,16 +5,25 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Assignment;
-use Illuminate\Support\Str; // 📝 1. TAMBAHKAN BARIS INI UNTUK MEMANGGIL FUNGSI UUID
+use Illuminate\Support\Str;
 
 class AssignmentController extends Controller
 {
-    // Create
+    // CREATE
     public function store(Request $request)
     {
         $userRole = $request->user()->role;
+        $jalurMasuk = $request->segment(2); // Membaca URL (dosen/kaprodi)
+
         if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'], 403);
+        }
+
+        if ($userRole !== $jalurMasuk) {
+            return response()->json([
+                'success' => false, 
+                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
+            ], 403);
         }
 
         $request->validate([
@@ -28,7 +37,6 @@ class AssignmentController extends Controller
         try {
             $assignment = Assignment::create([
                 'id'              => Str::uuid()->toString(), 
-                
                 'judul'           => $request->judul,
                 'deskripsi'       => $request->deskripsi,
                 'jam_kompen'      => $request->jam_kompen,
@@ -52,50 +60,55 @@ class AssignmentController extends Controller
         }
     }
 
-    // Update
+    // UPDATE
     public function update(Request $request, $id)
     {
-        // 1. Cek Role (Sama kayak Create)
         $userRole = $request->user()->role;
-        if ($userRole !== 'dosen') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        $jalurMasuk = $request->segment(2);
+
+        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'
+            ], 403);
         }
 
-        // 2. Cari tugasnya di database berdasarkan ID (UUID) yang dikirim di URL
+        if ($userRole !== $jalurMasuk) {
+            return response()->json([
+                'success' => false, 
+                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
+            ], 403);
+        }
+
         $assignment = Assignment::find($id);
 
-        // Kalau tugasnya nggak ketemu
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'Data assignment tidak ditemukan!'], 404);
         }
 
-        // 3. Cek apakah dosen_id di tugas tersebut SAMA DENGAN id dosen yang lagi login
         if ($assignment->dosen_id !== $request->user()->id) {
             return response()->json([
                 'success' => false, 
-                'message' => 'Anda tidak berhak mengedit assignment milik dosen lain!'
+                'message' => 'Anda tidak berhak mengedit assignment milik orang lain!'
             ], 403);
         }
 
-        // 4. Validasi inputan baru (pakai 'sometimes' agar dosen boleh update sebagian data saja)
         $request->validate([
             'judul'           => 'sometimes|required|string',
             'deskripsi'       => 'sometimes|required|string',
             'jam_kompen'      => 'sometimes|required|integer',
             'tanggal_mulai'   => 'sometimes|required|date',
             'tanggal_selesai' => 'sometimes|required|date',
-            'status'          => 'sometimes|required|string', // Bisa buat update status ke 'selesai'
+            'status'          => 'sometimes|required|string', 
         ]);
 
         try {
-            // 5. Eksekusi Update ke Database
-            // Fungsi update() otomatis menimpa data lama dengan data baru dari $request
             $assignment->update($request->all());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Assignment berhasil diperbarui!',
-                'data'    => $assignment // Menampilkan wujud data setelah diedit
+                'data'    => $assignment 
             ], 200);
 
         } catch (\Exception $e) {
@@ -106,32 +119,37 @@ class AssignmentController extends Controller
         }
     }
 
-    // Delete
+    // DELETE
     public function destroy(Request $request, $id)
     {
-        // 1. PENJAGA PINTU ROLE
         $userRole = $request->user()->role;
-        if ($userRole !== 'dosen') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        $jalurMasuk = $request->segment(2);
+
+        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'], 403);
         }
 
-        // 2. CARI TUGAS BERDASARKAN UUID
+        if ($userRole !== $jalurMasuk) {
+            return response()->json([
+                'success' => false, 
+                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
+            ], 403);
+        }
+
         $assignment = Assignment::find($id);
 
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'Data assignment tidak ditemukan!'], 404);
         }
 
-        // 3. Cek id
         if ($assignment->dosen_id !== $request->user()->id) {
             return response()->json([
                 'success' => false, 
-                'message' => 'Anda tidak berhak menghapus assignment milik dosen lain!'
+                'message' => 'Anda tidak berhak menghapus assignment milik orang lain!'
             ], 403);
         }
 
         try {
-            // 4. EKSEKUSI HAPUS DARI DATABASE
             $assignment->delete();
 
             return response()->json([
@@ -147,19 +165,26 @@ class AssignmentController extends Controller
         }
     }
 
-    // Get View
-    // Get All
+    // ==========================================
+    // GET ALL
+    // ==========================================
     public function index(Request $request)
     {
-        // 1. Cek Role
         $userRole = $request->user()->role;
-        if ($userRole !== 'dosen') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        $jalurMasuk = $request->segment(2);
+
+        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'], 403);
+        }
+
+        if ($userRole !== $jalurMasuk) {
+            return response()->json([
+                'success' => false, 
+                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
+            ], 403);
         }
 
         try {
-            // 2. Ambil data HANYA yang dosen_id-nya cocok dengan dosen yang login
-            // orderBy('created_at', 'desc') supaya tugas yang paling baru ada di paling atas
             $assignments = Assignment::where('dosen_id', $request->user()->id)
                                      ->orderBy('created_at', 'desc')
                                      ->get();
@@ -178,23 +203,31 @@ class AssignmentController extends Controller
         }
     }
 
-    // Get Detail
+    // ==========================================
+    // GET DETAIL
+    // ==========================================
     public function show(Request $request, $id)
     {
-        // 1. Cek Role
         $userRole = $request->user()->role;
-        if ($userRole !== 'dosen') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        $jalurMasuk = $request->segment(2);
+
+        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'], 403);
         }
 
-        // 2. Cari tugasnya
+        if ($userRole !== $jalurMasuk) {
+            return response()->json([
+                'success' => false, 
+                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
+            ], 403);
+        }
+
         $assignment = Assignment::find($id);
 
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'Data tidak ditemukan!'], 404);
         }
 
-        // 3. Cek Kepemilikan (Jangan sampai dosen ngintip tugas dosen lain)
         if ($assignment->dosen_id !== $request->user()->id) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak! Ini bukan assignment Anda.'], 403);
         }
