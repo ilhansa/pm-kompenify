@@ -9,13 +9,12 @@ class Assignment extends Model
 {
     use HasFactory;
 
-    // 1. Matikan auto-increment karena kita pakai String (UUID)
+    // 📝 1. TAMBAHKAN DUA BARIS INI WAJIB!
     public $incrementing = false;
     protected $keyType = 'string';
 
-    // 2. Izinkan kolom-kolom ini diisi data (Mass Assignment)
     protected $fillable = [
-        'id',
+        'id',             // Pastikan id masuk ke fillable
         'judul',
         'deskripsi',
         'jam_kompen',

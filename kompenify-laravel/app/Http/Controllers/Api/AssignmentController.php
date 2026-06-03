@@ -5,14 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Assignment;
+use Illuminate\Support\Str; // 📝 1. TAMBAHKAN BARIS INI UNTUK MEMANGGIL FUNGSI UUID
 
 class AssignmentController extends Controller
 {
     public function store(Request $request)
     {
-        // 1. Validasi data yang masuk
+        $userRole = $request->user()->role;
+        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        }
+
+        // 📝 2. VALIDASI 'id' DIHAPUS, KARENA KITA TIDAK MINTA DARI POSTMAN LAGI
         $request->validate([
-            'id'              => 'required|string', 
             'judul'           => 'required|string',
             'deskripsi'       => 'required|string',
             'jam_kompen'      => 'required|integer',
@@ -21,21 +26,19 @@ class AssignmentController extends Controller
         ]);
 
         try {
-            // 2. Simpan ke database
             $assignment = Assignment::create([
-                'id'              => $request->id, // ID bentuk UUID dari Flutter
+                // 📝 3. LARAVEL YANG BIKIN UUID-NYA OTOMATIS!
+                'id'              => Str::uuid()->toString(), 
+                
                 'judul'           => $request->judul,
                 'deskripsi'       => $request->deskripsi,
                 'jam_kompen'      => $request->jam_kompen,
                 'tanggal_mulai'   => $request->tanggal_mulai,
                 'tanggal_selesai' => $request->tanggal_selesai,
-                'status'          => 'aktif', // Otomatis aktif saat dibuat
-                
-                // Mengambil ID Dosen otomatis dari token user yang sedang login
+                'status'          => 'aktif', 
                 'dosen_id'        => $request->user()->id, 
             ]);
 
-            // 3. Kembalikan respon sukses
             return response()->json([
                 'success' => true,
                 'message' => 'Assignment berhasil dibuat!',
@@ -43,7 +46,6 @@ class AssignmentController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            // Jika gagal, kembalikan pesan error
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal membuat assignment: ' . $e->getMessage()
