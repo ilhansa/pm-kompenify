@@ -43,22 +43,42 @@ export default function Dashboard() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage('');
+        let isSuccess = false; // Flag penanda jika proses API benar-benar sukses murni
+
         try {
             if (isEditing) {
-                // Jalur editAkun(userId, data)
-                await api.put(`/admin/users/${formData.id}`, formData);
-                setMessage('Akun berhasil diperbarui!');
+                // Jalur editAkun(userId, data) - Menyertakan password dinamis
+                const response = await api.put(`/admin/users/${formData.id}`, {
+                    nimNip: formData.nimNip,
+                    nama: formData.nama,
+                    role: formData.role,
+                    password: formData.password // Ikut dikirim, jika kosong backend akan mengabaikannya
+                });
+                
+                if (response.data.success) {
+                    setMessage(response.data.message || 'Akun berhasil diperbarui!');
+                    isSuccess = true;
+                }
             } else {
                 // Jalur registerAkun(data)
-                await api.post('/admin/users', formData);
-                setMessage('Akun baru berhasil didaftarkan!');
+                const response = await api.post('/admin/users', formData);
+                
+                if (response.data.success) {
+                    setMessage('Akun baru berhasil didaftarkan!');
+                    isSuccess = true;
+                }
             }
-            // Reset form dan refresh tabel
+        } catch (error) {
+            console.error(error);
+            // Menampilkan pesan error spesifik dari backend jika ada (misal: NIM sudah terdaftar)
+            setMessage(error.response?.data?.message || 'Proses gagal, periksa kembali inputan.');
+        }
+
+        // Eksekusi reset form dan refresh tabel di luar try-catch utama jika API sukses murni
+        if (isSuccess) {
             setFormData({ id: '', nimNip: '', nama: '', password: '', role: 'mhs' });
             setIsEditing(false);
-            fetchUsers();
-        } catch (error) {
-            setMessage('Proses gagal, periksa kembali inputan.');
+            fetchUsers(); // Tabel auto-refresh real-time tanpa delay!
         }
     };
 
@@ -111,18 +131,40 @@ export default function Dashboard() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase">NIM / NIP / Username</label>
-                            <input type="text" value={formData.nimNip} onChange={e => setFormData({...formData, nimNip: e.target.value})} className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" required />
+                            <input 
+                                type="text" 
+                                value={formData.nimNip} 
+                                onChange={e => setFormData({...formData, nimNip: e.target.value})} 
+                                className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" 
+                                required 
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase">Nama Lengkap</label>
-                            <input type="text" value={formData.nama} onChange={e => setFormData({...formData, nama: e.target.value})} className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" required />
+                            <input 
+                                type="text" 
+                                value={formData.nama} 
+                                onChange={e => setFormData({...formData, nama: e.target.value})} 
+                                className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" 
+                                required 
+                            />
                         </div>
-                        {!isEditing && (
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase">Password</label>
-                                <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" required />
-                            </div>
-                        )}
+                        
+                        {/* Kolom Password yang selalu muncul untuk fitur Reset Password Admin */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase">
+                                {isEditing ? 'Password Baru (Kosongkan jika tidak diubah)' : 'Password'}
+                            </label>
+                            <input 
+                                type="password" 
+                                value={formData.password || ''} 
+                                onChange={e => setFormData({...formData, password: e.target.value})} 
+                                className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100" 
+                                placeholder={isEditing ? "Masukkan password baru untuk reset..." : "••••••••"}
+                                required={!isEditing} // Wajib diisi hanya saat registrasi akun baru
+                            />
+                        </div>
+
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase">Role Akses</label>
                             <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 text-slate-100">
