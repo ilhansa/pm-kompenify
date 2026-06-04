@@ -12,7 +12,12 @@ class AdminUserController extends Controller
 {
     public function lihatDaftarAkun()
     {
-        $users = User::orderBy('created_at', 'desc')->get();
+        $users = DB::table('users')
+        ->leftJoin('mahasiswas', 'users.id', '=', 'mahasiswas.user_id')
+        ->select('users.id', 'users.nimNip', 'users.nama', 'users.role', 'mahasiswas.prodi')
+        ->orderBy('users.created_at', 'desc')
+        ->get();
+
         return response()->json([
             'success' => true,
             'data' => $users
@@ -56,7 +61,7 @@ class AdminUserController extends Controller
             DB::table('mahasiswas')->insert([
                 'user_id'          => $user->id,
                 'nim'              => $user->nimNip,
-                'prodi'            => null,
+                'prodi'            => $request->input('prodi'),
                 'total_jam_kompen' => 0,
                 'sisa_jam_kompen'  => 0,
                 'created_at'       => now(),
@@ -85,39 +90,78 @@ class AdminUserController extends Controller
         ], 201);
     }
 
-    public function editAkun(Request $request, $id)
-    {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'User tidak ditemukan.'], 404);
-        }
-
-        $request->validate([
-            'nimNip'   => 'required|unique:users,nimNip,'.$id,
-            'nama'     => 'required',
-            'role'     => 'required|in:mhs,dosen,kaprodi,admin',
-            'password' => 'nullable|min:4'
-        ]);
-
-        $updateData = [
-            'nimNip' => $request->nimNip,
-            'nama'   => $request->nama,
-            'role'   => $request->role
-        ];
-
-        if ($request->filled('password')) {
-            $updateData['password'] = $request->password;
-        }
-
-        $user->update($updateData);
-
-        return response()->json([
-            'success' => true,
-            'message' => $request->filled('password')
-                ? 'Akun dan password baru berhasil diperbarui'
-                : 'Akun berhasil diperbarui!'
-        ], 200);
+   public function editAkun(Request $request, $id)
+{
+    $user = User::find($id);
+    if (!$user) {
+        return response()->json(['success' => false, 'message' => 'User tidak ditemukan.'], 404);
     }
+
+    $request->validate([
+        'nimNip'   => 'required|unique:users,nimNip,'.$id,
+        'nama'     => 'required',
+        'role'     => 'required|in:mhs,dosen,kaprodi,admin',
+        'password' => 'nullable|min:4'
+    ]);
+
+    $updateData = [
+        'nimNip' => $request->nimNip,
+        'nama'   => $request->nama,
+        'role'   => $request->role
+    ];
+
+    if ($request->filled('password')) {
+        $updateData['password'] = $request->password;
+    }
+
+    // Update tabel users
+    $user->update($updateData);
+
+    // Bersihkan data di tabel child
+    DB::table('mahasiswas')->where('user_id', $id)->delete();
+    DB::table('dosens')->where('user_id', $id)->delete();
+    DB::table('kaprodis')->where('user_id', $id)->delete();
+    DB::table('admins')->where('id', $id)->delete();
+
+    // Migrasi data ke tabel child baru
+    if ($user->role === 'mhs') {
+        DB::table('mahasiswas')->insert([
+            'user_id'          => $id,
+            'nim'              => $request->nimNip,
+            'prodi'            => $request->input('prodi'),
+            'total_jam_kompen' => 0,
+            'sisa_jam_kompen'  => 0,
+            'created_at'       => now(),
+            'updated_at'       => now()
+        ]);
+    } elseif ($user->role === 'dosen') {
+        DB::table('dosens')->insert([
+            'user_id'    => $id,
+            'nip'        => $request->nimNip,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+    } elseif ($user->role === 'kaprodi') {
+        DB::table('kaprodis')->insert([
+            'user_id'         => $id,
+            'nip'             => $request->nimNip,
+            'tandaTanganPath' => null,
+            'created_at'      => now(),
+            'updated_at'      => now()
+        ]);
+    } elseif ($user->role === 'admin') {
+        DB::table('admins')->insert([
+            'id'         => $id,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Akun telah diperbarui!'
+    ], 200);
+}
 
     public function hapusAkun($id)
     {
