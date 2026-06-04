@@ -16,6 +16,9 @@ Route::post('/login', [AuthController::class, 'login']);
 // 2. GERBANG PRIVAT (Wajib Lolos Autentikasi & Bawa Token Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
 
+    // FITUR PROFIL GLOBAL: Wajib ada untuk satpam pengingat sesi di React & Flutter!
+    Route::get('/profile', [AuthController::class, 'getProfile']);
+
     // Fitur Logout Global
     Route::post('/logout', [AuthController::class, 'logout']);
 
