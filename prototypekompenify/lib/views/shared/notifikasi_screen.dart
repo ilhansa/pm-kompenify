@@ -14,7 +14,9 @@ class NotifikasiScreen extends StatelessWidget {
     final svc = context.watch<DataService>();
     final user = svc.currentUser;
     if (user == null) return const SizedBox();
-    final notifs = svc.getNotifikasi(user.id);
+    
+    // 1. Tambahkan .toString() karena getNotifikasi meminta parameter String
+    final notifs = svc.getNotifikasi(user.id.toString());
 
     return GradientBackground(
       child: SafeArea(
@@ -26,7 +28,8 @@ class NotifikasiScreen extends StatelessWidget {
               const Spacer(),
               if (notifs.any((n) => !n.sudahDibaca))
                 TextButton(
-                  onPressed: () => svc.markAllAsRead(user.id),
+                  // 2. Tambahkan .toString() juga di sini
+                  onPressed: () => svc.markAllAsRead(user.id.toString()),
                   child: const Text('Tandai Semua Dibaca', style: TextStyle(fontSize: 12, color: AppTheme.accent)),
                 ),
             ]),

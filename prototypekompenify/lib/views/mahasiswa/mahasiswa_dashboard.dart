@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../controllers/data_service.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
@@ -13,75 +12,82 @@ class MahasiswaDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
     final user = svc.currentUser!;
-    final rekap = svc.getRekap(user.id);
-    final pengajuan = svc.getPengajuan(mahasiswaId: user.id);
+    
+    final rekap = svc.getRekap(user.id.toString());
+    final pengajuan = svc.getPengajuan(mahasiswaId: user.id.toString());
     final recent = pengajuan.take(3).toList();
 
     return GradientBackground(
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Header
-            Row(children: [
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  shape: BoxShape.circle,
+        // 📝 1. BUNGKUS DENGAN REFRESH INDICATOR
+        child: RefreshIndicator(
+          color: AppTheme.primary,
+          backgroundColor: AppTheme.bgCard,
+          // 📝 2. VIEW HANYA MEMANGGIL FUNGSI DARI CONTROLLER
+          onRefresh: () => context.read<DataService>().refreshDataMahasiswa(),
+          child: SingleChildScrollView(
+            // 📝 3. WAJIB ADA PHYSICS INI
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Header
+              Row(children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(child: Text(user.name.isNotEmpty ? user.name[0] : 'M', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white))),
                 ),
-                child: Center(child: Text(user.nama[0], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-              ),
-              const SizedBox(width: 12),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Halo, ${user.nama.split(' ').first}! 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                Text(user.nim, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                const SizedBox(width: 12),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Halo, ${user.name.split(' ').first}! 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  Text(user.username, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                ]),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: rekap.sudahLunas ? AppTheme.accentGreen.withOpacity(0.15) : AppTheme.accentOrange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: rekap.sudahLunas ? AppTheme.accentGreen.withOpacity(0.3) : AppTheme.accentOrange.withOpacity(0.3)),
+                  ),
+                  child: Text(rekap.sudahLunas ? '✅ Lunas' : '⏳ ${rekap.sisaJam} jam lagi',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                      color: rekap.sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
+                ),
               ]),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: rekap.sudahLunas ? AppTheme.accentGreen.withOpacity(0.15) : AppTheme.accentOrange.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: rekap.sudahLunas ? AppTheme.accentGreen.withOpacity(0.3) : AppTheme.accentOrange.withOpacity(0.3)),
-                ),
-                child: Text(rekap.sudahLunas ? '✅ Lunas' : '⏳ ${rekap.sisaJam} jam lagi',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                    color: rekap.sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange)),
-              ),
+              const SizedBox(height: 24),
+
+              _RekapCard(rekap: rekap, totalWajib: user.mahasiswa?.totalJamKompen, sisaJam: user.mahasiswa?.sisaJamKompen),
+              const SizedBox(height: 24),
+
+              Row(children: [
+                Expanded(child: StatCard(
+                  label: 'Total Pengajuan',
+                  value: '${pengajuan.length}',
+                  icon: Icons.assignment_outlined,
+                  color: AppTheme.accent,
+                )),
+                const SizedBox(width: 12),
+                Expanded(child: StatCard(
+                  label: 'Selesai (Lunas)',
+                  value: '${pengajuan.where((p) => p.status == KompenStatus.lunas).length}',
+                  icon: Icons.check_circle_outline,
+                  color: AppTheme.accentGreen,
+                )),
+              ]),
+              const SizedBox(height: 24),
+
+              SectionHeader(title: 'Kompen Terbaru', action: 'Lihat Semua', onAction: () {}),
+              const SizedBox(height: 12),
+              if (recent.isEmpty)
+                const EmptyState(icon: Icons.assignment_outlined, title: 'Belum ada kompen', subtitle: 'Pilih assignment untuk mulai mengajukan kompen')
+              else
+                ...recent.map((p) => KompenCard(pengajuan: p)),
             ]),
-            const SizedBox(height: 24),
-
-            // Rekap Card
-            _RekapCard(rekap: rekap),
-            const SizedBox(height: 24),
-
-            // Quick Stats
-            Row(children: [
-              Expanded(child: StatCard(
-                label: 'Total Pengajuan',
-                value: '${pengajuan.length}',
-                icon: Icons.assignment_outlined,
-                color: AppTheme.accent,
-              )),
-              const SizedBox(width: 12),
-              Expanded(child: StatCard(
-                label: 'Selesai (Lunas)',
-                value: '${pengajuan.where((p) => p.status == KompenStatus.lunas).length}',
-                icon: Icons.check_circle_outline,
-                color: AppTheme.accentGreen,
-              )),
-            ]),
-            const SizedBox(height: 24),
-
-            // Recent kompen
-            SectionHeader(title: 'Kompen Terbaru', action: 'Lihat Semua', onAction: () {}),
-            const SizedBox(height: 12),
-            if (recent.isEmpty)
-              const EmptyState(icon: Icons.assignment_outlined, title: 'Belum ada kompen', subtitle: 'Pilih assignment untuk mulai mengajukan kompen')
-            else
-              ...recent.map((p) => KompenCard(pengajuan: p)),
-          ]),
+          ),
         ),
       ),
     );
@@ -90,11 +96,19 @@ class MahasiswaDashboard extends StatelessWidget {
 
 class _RekapCard extends StatelessWidget {
   final RekapKompen rekap;
-  const _RekapCard({required this.rekap});
+  final int? totalWajib;
+  final int? sisaJam;
+
+  const _RekapCard({required this.rekap, this.totalWajib, this.sisaJam});
 
   @override
   Widget build(BuildContext context) {
-    final pct = rekap.persentase.clamp(0.0, 1.0);
+    final displayTotalWajib = totalWajib ?? rekap.totalJamWajib;
+    final displaySisaJam = sisaJam ?? rekap.sisaJam;
+    final displaySelesai = displayTotalWajib - displaySisaJam;
+    
+    double pct = displayTotalWajib > 0 ? (displaySelesai / displayTotalWajib) : 0.0;
+    pct = pct.clamp(0.0, 1.0);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -124,11 +138,11 @@ class _RekapCard extends StatelessWidget {
         const SizedBox(height: 12),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${rekap.totalJamSelesai} Jam', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+            Text('$displaySelesai Jam', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
             const Text('sudah diselesaikan', style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('${rekap.totalJamWajib} Jam', style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600)),
+            Text('$displayTotalWajib Jam', style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600)),
             const Text('total wajib', style: TextStyle(color: Colors.white54, fontSize: 11)),
           ]),
         ]),

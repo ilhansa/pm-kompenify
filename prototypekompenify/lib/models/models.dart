@@ -10,7 +10,6 @@ class User {
   final String nama;
   final UserRole role;
   final String? prodi;
-  final String? email;
   String? signatureBase64;
 
   User({
@@ -19,7 +18,6 @@ class User {
     required this.nama,
     required this.role,
     this.prodi,
-    this.email,
     this.signatureBase64,
   });
 
@@ -39,13 +37,12 @@ class User {
       nama: map['nama'],
       role: UserRole.values.firstWhere((r) => r.name == map['role']),
       prodi: map['prodi'],
-      email: map['email'],
     );
   }
 
   Map<String, dynamic> toMap() => {
     'id': id, 'nim': nim, 'nama': nama,
-    'role': role.name, 'prodi': prodi, 'email': email,
+    'role': role.name, 'prodi': prodi,
   };
 }
 

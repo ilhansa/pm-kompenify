@@ -29,8 +29,11 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
 
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<DataService>().getUnreadCount(
-      context.read<DataService>().currentUser?.id ?? '',
+    final dataSvc = context.watch<DataService>();
+    
+    // 1. Konversi currentUser?.id ke String menggunakan .toString() agar singkron dengan fungsi statis
+    final unread = dataSvc.getUnreadCount(
+      dataSvc.currentUser?.id != null ? dataSvc.currentUser!.id.toString() : '',
     );
 
     return Scaffold(
@@ -45,6 +48,7 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
           selectedIndex: _idx,
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: [
             const NavigationDestination(
               icon: Icon(Icons.home_outlined),

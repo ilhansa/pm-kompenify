@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import 'controllers/data_service.dart';
 import 'utils/app_theme.dart';
 import 'views/auth/login_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load file .env
+  await dotenv.load(fileName: ".env");
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
