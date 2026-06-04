@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AssignmentController;
+use App\Http\Controllers\Api\PengajuanKompenController;
 
 Route::prefix('kaprodi')->group(function () {
     
@@ -18,5 +19,10 @@ Route::prefix('kaprodi')->group(function () {
     Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
     // delete
     Route::delete('/assignments/{id}', [AssignmentController::class, 'destroy']);
-
+    // melihat daftar pengajuan kompen (get all)
+    Route::get('/pengajuan-kompen', [PengajuanKompenController::class, 'indexPemberiKompen']);
+    // Melihat daftar pengajuan kompen di 1 tugas spesifik (get details)
+    Route::get('/assignments/{assignment_id}/pengajuan-kompen', [PengajuanKompenController::class, 'pengajuanKompenByAssignment']);
+    // menerima/menolak pengajuan
+    Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
 });

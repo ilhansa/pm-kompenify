@@ -18,6 +18,18 @@ class PengajuanKompen extends Model
         'status',
     ];
 
-    public $incrementing = false; // karena pakai UUID
+    public $incrementing = false;
     protected $keyType = 'string';
+
+    // Relasi ke tabel assignments
+    public function assignment()
+    {
+        return $this->belongsTo(Assignment::class, 'assignment_id');
+    }
+
+    // Relasi ke tabel mahasiswas
+    public function mahasiswa()
+    {
+        return $this->belongsTo(Mahasiswa::class, 'mahasiswa_id');
+    }
 }
