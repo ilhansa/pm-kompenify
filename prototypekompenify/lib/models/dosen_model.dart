@@ -1,6 +1,6 @@
 class DosenModel {
-  final int id;
-  final int userId;
+  final String id;
+  final String userId;
   final String nip;
   final String? prodi;
   final String? signature_base64;
@@ -15,11 +15,11 @@ class DosenModel {
 
   factory DosenModel.fromJson(Map<String, dynamic> json) {
     return DosenModel(
-      id: json['id'] ?? 0,
-      userId: json['user_id'] ?? '',
-      nip: json['nip'] ?? '',
-      prodi: json['prodi'],
-      signature_base64: json['signature_base64'],
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      nip: json['nip']?.toString() ?? '',
+      prodi: json['prodi']?.toString(),
+      signature_base64: json['signature_base64']?.toString(),
     );
   }
 
