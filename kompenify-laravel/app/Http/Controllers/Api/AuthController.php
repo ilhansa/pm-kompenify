@@ -18,7 +18,7 @@ class AuthController extends Controller
 
         $user = User::where('nimNip', $request->username)->first();
 
-        if (!$user || (!Hash::check($request->password, $user->password) && $request->password !== $user->password)) {
+        if (!$user || $user->nimNip !== $request->username || (!Hash::check($request->password, $user->password) && $request->password !== $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Username atau password salah, Bang.'
