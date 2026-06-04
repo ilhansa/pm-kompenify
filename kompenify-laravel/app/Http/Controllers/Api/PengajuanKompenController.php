@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PengajuanKompen;
 use App\Models\Mahasiswa;
+use App\Models\Notifikasi;
 use Illuminate\Support\Str;
 
 class PengajuanKompenController extends Controller
@@ -13,7 +14,7 @@ class PengajuanKompenController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'assignment_id' => 'required|uuid', // Atau 'string' tergantung rules kamu sebelumnya
+            'assignment_id' => 'required|uuid',
         ]);
 
         $user = $request->user();
@@ -39,28 +40,48 @@ class PengajuanKompenController extends Controller
         // 3. cek duplikasi
         $sudahPernahDaftar = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
                                             ->where('assignment_id', $request->assignment_id)
-                                            ->exists(); // exists() akan menghasilkan nilai true/false
+                                            ->exists();
 
         if ($sudahPernahDaftar) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda sudah mengajukan kompen untuk tugas ini! Menunggu persetujuan Dosen.'
-            ], 409); // Status 409 Conflict (Data bentrok/sudah ada)
+            ], 409);
         }
 
-        // 4. SIMPAN KE DATABASE JIKA LOLOS
-        $pengajuan = PengajuanKompen::create([
-            'id' => Str::uuid()->toString(),
-            'mahasiswa_id' => $mahasiswa->id, 
-            'assignment_id' => $request->assignment_id,
-            'status' => 'pending',
-        ]);
+        try {
+            // 4. SIMPAN KE DATABASE JIKA LOLOS
+            $pengajuan = PengajuanKompen::create([
+                'id' => Str::uuid()->toString(),
+                'mahasiswa_id' => $mahasiswa->id, 
+                'assignment_id' => $request->assignment_id,
+                'status' => 'pending',
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengajuan kompen berhasil dikirim',
-            'data' => $pengajuan
-        ], 201);
+            // 5. KIRIM NOTIFIKASI KE DOSEN PEMILIK TUGAS
+            $assignment = \App\Models\Assignment::find($request->assignment_id);
+            
+            if ($assignment) {
+                \App\Models\Notifikasi::create([
+                    'id'      => Str::uuid()->toString(),
+                    'user_id' => $assignment->dosen_id, // Dikirim ke akun user si dosen
+                    'judul'   => 'Ada Pelamar Baru!',
+                    'pesan'   => "Mahasiswa dengan NIM {$mahasiswa->nim} baru saja melamar untuk tugas '{$assignment->judul}'. Segera cek daftar pelamar!",
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pengajuan kompen berhasil dikirim',
+                'data' => $pengajuan
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat pengajuan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // view
@@ -308,66 +329,85 @@ class PengajuanKompenController extends Controller
     {
         $user = $request->user();
         $userRole = $user->role;
-        $jalurMasuk = $request->segment(2); // Cek URL (dosen/kaprodi)
+        $jalurMasuk = $request->segment(2); 
 
-        // 1. Satpam Pintu Masuk
         if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
             return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
         }
 
         if ($userRole !== $jalurMasuk) {
-            return response()->json([
-                'success' => false, 
-                'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
-            ], 403);
+            return response()->json(['success' => false, 'message' => "Nyasar Bos!"], 403);
         }
 
-        // 2. Validasi inputan dari Flutter/Postman
-        // Hanya menerima kata 'diterima' atau 'ditolak'
         $request->validate([
             'status' => 'required|in:diterima,ditolak'
         ]);
 
-        // 3. Cari pengajuan sekaligus bawa data tugasnya (pakai with)
-        $pengajuan = PengajuanKompen::with('assignment')->find($id);
+        // Bawa relasi assignment DAN mahasiswa sekaligus biar gampang ambil user_id
+        $pengajuan = PengajuanKompen::with(['assignment', 'mahasiswa'])->find($id);
 
         if (!$pengajuan) {
             return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
         }
 
-        // 4. SATPAM KEPEMILIKAN 👮‍♂️
-        // Cek: Apakah tugas yang dilamar ini benar-benar buatan dosen yang lagi login?
         if ($pengajuan->assignment->dosen_id !== $user->id) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Akses ditolak! Anda tidak bisa memproses pengajuan di tugas milik dosen lain.'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Bukan tugas Anda.'], 403);
         }
 
-        // 5. Cek apakah status sudah pernah diproses (Opsional, biar dosen ga plin-plan)
         if ($pengajuan->status !== 'pending') {
-            return response()->json([
-                'success' => false, 
-                'message' => "Pengajuan ini sudah diproses sebelumnya (Status: $pengajuan->status)."
-            ], 400);
+            return response()->json(['success' => false, 'message' => "Pengajuan sudah diproses."], 400);
         }
 
         try {
-            // 6. Eksekusi ubah status
+            // 1. Eksekusi ubah status
             $pengajuan->update([
                 'status' => $request->status
             ]);
 
+            // 2. KIRIM NOTIFIKASI KE MAHASISWA YANG DIPROSES
+            Notifikasi::create([
+                'id'      => Str::uuid()->toString(),
+                'user_id' => $pengajuan->mahasiswa->user_id,
+                'judul'   => $request->status === 'diterima' ? '🎉 Pengajuan Diterima!' : '❌ Pengajuan Ditolak',
+                'pesan'   => "Pengajuan kompen Anda untuk tugas '{$pengajuan->assignment->judul}' telah " . $request->status . ".",
+            ]);
+
+            // 3. AUTO-REJECT & NOTIF PATAH HATI BUAT MAHASISWA LAIN
+            if ($request->status === 'diterima') {
+                // Cari mahasiswa lain yang berstatus pending
+                $pengajuanLain = PengajuanKompen::where('assignment_id', $pengajuan->assignment_id)
+                               ->where('id', '!=', $pengajuan->id)
+                               ->where('status', 'pending')
+                               ->with('mahasiswa')
+                               ->get();
+                
+                foreach ($pengajuanLain as $pLain) {
+                    $pLain->update(['status' => 'ditolak']);
+
+                    // Kirim notifikasi ke mereka
+                    Notifikasi::create([
+                        'id'      => Str::uuid()->toString(),
+                        'user_id' => $pLain->mahasiswa->user_id,
+                        'judul'   => 'Maaf, Kuota Tugas Penuh',
+                        'pesan'   => "Tugas '{$pengajuan->assignment->judul}' sudah ditugaskan ke mahasiswa lain. Yuk cari tugas lain!",
+                    ]);
+                }
+                
+                $pengajuan->assignment->update([
+                    'status' => 'sedang dikerjakan' 
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Status pengajuan mahasiswa berhasil diubah menjadi ' . $request->status,
+                'message' => 'Status pengajuan berhasil diubah menjadi ' . $request->status,
                 'data'    => $pengajuan
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengubah status pengajuan: ' . $e->getMessage()
+                'message' => 'Gagal memproses: ' . $e->getMessage()
             ], 500);
         }
     }
