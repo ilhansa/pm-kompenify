@@ -159,7 +159,7 @@ class AdminUserController extends Controller
 
     return response()->json([
         'success' => true,
-        'message' => 'Akun telah diperbarui!!'
+        'message' => 'Akun telah diperbarui!'
     ], 200);
 }
 
