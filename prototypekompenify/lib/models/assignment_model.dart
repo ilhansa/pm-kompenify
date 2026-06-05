@@ -1,5 +1,5 @@
 // lib/models/assignment_model.dart
-// Model ini sesuai dengan response JSON dari AssignmentController Laravel
+// ✅ Update: tambah field dosenNama (dari relasi with('dosen'))
 
 class AssignmentModel {
   final String id;
@@ -10,6 +10,7 @@ class AssignmentModel {
   final String tanggalMulai;
   final String tanggalSelesai;
   final String status;
+  final String? dosenNama; // dari relasi with('dosen:id,nama') di Laravel
 
   AssignmentModel({
     required this.id,
@@ -20,9 +21,16 @@ class AssignmentModel {
     required this.tanggalMulai,
     required this.tanggalSelesai,
     required this.status,
+    this.dosenNama,
   });
 
   factory AssignmentModel.fromJson(Map<String, dynamic> json) {
+    // Ambil nama dosen dari relasi (kalau ada)
+    String? namaDosen;
+    if (json['dosen'] != null && json['dosen'] is Map) {
+      namaDosen = json['dosen']['nama'];
+    }
+
     return AssignmentModel(
       id: json['id'] ?? '',
       judul: json['judul'] ?? '',
@@ -32,19 +40,18 @@ class AssignmentModel {
       tanggalMulai: json['tanggal_mulai'] ?? '',
       tanggalSelesai: json['tanggal_selesai'] ?? '',
       status: json['status'] ?? 'aktif',
+      dosenNama: namaDosen,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'judul': judul,
-      'deskripsi': deskripsi,
-      'jam_kompen': jamKompen,
-      'dosen_id': dosenId,
-      'tanggal_mulai': tanggalMulai,
-      'tanggal_selesai': tanggalSelesai,
-      'status': status,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'judul': judul,
+    'deskripsi': deskripsi,
+    'jam_kompen': jamKompen,
+    'dosen_id': dosenId,
+    'tanggal_mulai': tanggalMulai,
+    'tanggal_selesai': tanggalSelesai,
+    'status': status,
+  };
 }

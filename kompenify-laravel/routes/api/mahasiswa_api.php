@@ -2,24 +2,29 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PengajuanKompenController;
+use App\Http\Controllers\Api\AssignmentController;
 
 // ==========================================
 // RUTE KHUSUS MAHASISWA
 // URL otomatis diawali dengan: /api/mahasiswa/...
 // ==========================================
 Route::prefix('mahasiswa')->group(function () {
-    
-    // Mahasiswa mengajukan kompen
-    // Method: POST | URL: http://localhost:8000/api/mahasiswa/pengajuan-kompen
-    
-    // create
+
+    // Daftar assignment aktif untuk mahasiswa
+    // GET | http://localhost:8000/api/mahasiswa/assignments
+    Route::get('/assignments', [AssignmentController::class, 'indexMahasiswa']);
+
+    // Pengajuan kompen
+    // POST   | http://localhost:8000/api/mahasiswa/pengajuan-kompen
     Route::post('/pengajuan-kompen', [PengajuanKompenController::class, 'store']);
 
-    // get all
+    // GET    | http://localhost:8000/api/mahasiswa/pengajuan-kompen
     Route::get('/pengajuan-kompen', [PengajuanKompenController::class, 'index']);
-    // get detail
+
+    // GET    | http://localhost:8000/api/mahasiswa/pengajuan-kompen/{id}
     Route::get('/pengajuan-kompen/{id}', [PengajuanKompenController::class, 'show']);
-    // delete
+
+    // DELETE | http://localhost:8000/api/mahasiswa/pengajuan-kompen/{id}
     Route::delete('/pengajuan-kompen/{id}', [PengajuanKompenController::class, 'destroy']);
 
 });

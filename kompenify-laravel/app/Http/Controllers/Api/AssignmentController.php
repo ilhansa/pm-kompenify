@@ -13,7 +13,7 @@ class AssignmentController extends Controller
     public function store(Request $request)
     {
         $userRole = $request->user()->role;
-        $jalurMasuk = $request->segment(2); // Membaca URL (dosen/kaprodi)
+        $jalurMasuk = $request->segment(2);
 
         if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
             return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'], 403);
@@ -21,7 +21,7 @@ class AssignmentController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -31,19 +31,19 @@ class AssignmentController extends Controller
             'deskripsi'       => 'required|string',
             'jam_kompen'      => 'required|integer',
             'tanggal_mulai'   => 'required|date',
-            'tanggal_selesai' => 'required|date', 
+            'tanggal_selesai' => 'required|date',
         ]);
 
         try {
             $assignment = Assignment::create([
-                'id'              => Str::uuid()->toString(), 
+                'id'              => Str::uuid()->toString(),
                 'judul'           => $request->judul,
                 'deskripsi'       => $request->deskripsi,
                 'jam_kompen'      => $request->jam_kompen,
                 'tanggal_mulai'   => $request->tanggal_mulai,
                 'tanggal_selesai' => $request->tanggal_selesai,
-                'status'          => 'aktif', 
-                'dosen_id'        => $request->user()->id, 
+                'status'          => 'aktif',
+                'dosen_id'        => $request->user()->id,
             ]);
 
             return response()->json([
@@ -68,14 +68,14 @@ class AssignmentController extends Controller
 
         if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Akses ditolak! Hanya Dosen dan Kaprodi yang diizinkan.'
             ], 403);
         }
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -88,7 +88,7 @@ class AssignmentController extends Controller
 
         if ($assignment->dosen_id !== $request->user()->id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Anda tidak berhak mengedit assignment milik orang lain!'
             ], 403);
         }
@@ -99,7 +99,7 @@ class AssignmentController extends Controller
             'jam_kompen'      => 'sometimes|required|integer',
             'tanggal_mulai'   => 'sometimes|required|date',
             'tanggal_selesai' => 'sometimes|required|date',
-            'status'          => 'sometimes|required|string', 
+            'status'          => 'sometimes|required|string',
         ]);
 
         try {
@@ -108,7 +108,7 @@ class AssignmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Assignment berhasil diperbarui!',
-                'data'    => $assignment 
+                'data'    => $assignment
             ], 200);
 
         } catch (\Exception $e) {
@@ -131,7 +131,7 @@ class AssignmentController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -144,7 +144,7 @@ class AssignmentController extends Controller
 
         if ($assignment->dosen_id !== $request->user()->id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Anda tidak berhak menghapus assignment milik orang lain!'
             ], 403);
         }
@@ -165,9 +165,7 @@ class AssignmentController extends Controller
         }
     }
 
-    // ==========================================
-    // GET ALL
-    // ==========================================
+    // GET ALL (dosen/kaprodi)
     public function index(Request $request)
     {
         $userRole = $request->user()->role;
@@ -179,7 +177,7 @@ class AssignmentController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -203,9 +201,7 @@ class AssignmentController extends Controller
         }
     }
 
-    // ==========================================
-    // GET DETAIL
-    // ==========================================
+    // GET DETAIL (dosen/kaprodi)
     public function show(Request $request, $id)
     {
         $userRole = $request->user()->role;
@@ -217,7 +213,7 @@ class AssignmentController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -238,4 +234,36 @@ class AssignmentController extends Controller
             'data'    => $assignment
         ], 200);
     }
+
+        // GET ALL (mahasiswa)
+    public function indexMahasiswa(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'mhs') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak! Hanya mahasiswa yang diizinkan.'
+            ], 403);
+        }
+
+        try {
+            $assignments = Assignment::where('status', 'aktif')
+                                     ->with('dosen:id,nama')
+                                     ->orderBy('created_at', 'desc')
+                                     ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil mengambil daftar assignment',
+                'data'    => $assignments
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
+    
