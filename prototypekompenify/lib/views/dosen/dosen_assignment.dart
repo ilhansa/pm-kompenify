@@ -1,11 +1,4 @@
 // lib/views/dosen/dosen_assignment.dart
-// ✅ Sudah tersambung ke API Laravel
-// Perubahan dari versi lama:
-//   - List assignment diambil dari svc.assignmentsApi (API real)
-//   - addAssignment → svc.addAssignmentApi()
-//   - editAssignment → svc.editAssignmentApi()
-//   - deleteAssignment → svc.deleteAssignmentApi()
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +6,7 @@ import '../../controllers/data_service.dart';
 import '../../models/assignment_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
+import 'daftar_pelamar_page.dart';
 
 class DosenAssignment extends StatelessWidget {
   const DosenAssignment({super.key});
@@ -20,7 +14,6 @@ class DosenAssignment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
-    // ✅ Pakai assignmentsApi (data dari Laravel), bukan getAssignments() statis
     final list = svc.assignmentsApi;
 
     return GradientBackground(
@@ -73,6 +66,13 @@ class DosenAssignment extends StatelessWidget {
                             assignment: a,
                             onEdit: () => _showForm(context, assignment: a),
                             onDelete: () => _confirmDelete(context, a.id),
+                            // ✅ Navigasi ke halaman pelamar
+                            onLihatPelamar: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DaftarPelamarPage(assignment: a),
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -131,16 +131,18 @@ class DosenAssignment extends StatelessWidget {
   }
 }
 
-// ─── Card untuk assignment dari API ───────────────────────────────────────────
+// ─── Card ──────────────────────────────────────────────────────────────────────
 class _AssignmentApiCard extends StatelessWidget {
   final AssignmentModel assignment;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onLihatPelamar; // ✅ tambahan
 
   const _AssignmentApiCard({
     required this.assignment,
     required this.onEdit,
     required this.onDelete,
+    required this.onLihatPelamar,
   });
 
   @override
@@ -157,6 +159,7 @@ class _AssignmentApiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Judul + badge status ──
           Row(
             children: [
               Expanded(
@@ -208,6 +211,24 @@ class _AssignmentApiCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
+          // ── Tombol lihat pelamar (full width) ──
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onLihatPelamar,
+              icon: const Icon(Icons.people_rounded, size: 15),
+              label: const Text('Lihat Pelamar'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                foregroundColor: AppTheme.primary,
+                side: BorderSide(color: AppTheme.primary.withOpacity(0.5)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // ── Edit + Hapus ──
           Row(
             children: [
               Expanded(
@@ -238,7 +259,7 @@ class _AssignmentApiCard extends StatelessWidget {
   }
 }
 
-// ─── Form sheet buat/edit assignment ──────────────────────────────────────────
+// ─── Form sheet ────────────────────────────────────────────────────────────────
 class _AssignmentFormSheet extends StatefulWidget {
   final AssignmentModel? assignment;
   const _AssignmentFormSheet({this.assignment});
@@ -263,7 +284,6 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
       _judulCtrl.text = a.judul;
       _descCtrl.text = a.deskripsi;
       _jam = a.jamKompen;
-      // Parse tanggal dari string API (format: "2025-01-15")
       try {
         _mulai = DateTime.parse(a.tanggalMulai);
         _berakhir = DateTime.parse(a.tanggalSelesai);
@@ -286,7 +306,6 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
     Map<String, dynamic> result;
 
     if (widget.assignment == null) {
-      // ✅ Kirim ke POST /api/dosen/assignments
       result = await svc.addAssignmentApi(
         judul: _judulCtrl.text.trim(),
         deskripsi: _descCtrl.text.trim(),
@@ -295,7 +314,6 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
         tanggalSelesai: _berakhir,
       );
     } else {
-      // ✅ Kirim ke PUT /api/dosen/assignments/{id}
       result = await svc.editAssignmentApi(
         widget.assignment!.id,
         judul: _judulCtrl.text.trim(),
@@ -316,7 +334,8 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                 ? '✅ Assignment berhasil dibuat!'
                 : '✅ Assignment diperbarui!'
             : '❌ ${result['message']}'),
-        backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
+        backgroundColor:
+            result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
       ));
     }
   }
@@ -337,7 +356,9 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context)),
               ],
             ),
             const SizedBox(height: 20),
@@ -358,7 +379,8 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Jam Kompen', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            const Text('Jam Kompen',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -366,15 +388,20 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                   .map((j) => GestureDetector(
                         onTap: () => setState(() => _jam = j),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: _jam == j ? AppTheme.primary : AppTheme.bgCardLight,
+                            color: _jam == j
+                                ? AppTheme.primary
+                                : AppTheme.bgCardLight,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             '$j jam',
                             style: TextStyle(
-                              color: _jam == j ? Colors.white : AppTheme.textSecondary,
+                              color: _jam == j
+                                  ? Colors.white
+                                  : AppTheme.textSecondary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -386,11 +413,17 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
             Row(
               children: [
                 Expanded(
-                  child: _DateBtn(label: 'Mulai', date: _mulai, onPick: (d) => setState(() => _mulai = d)),
+                  child: _DateBtn(
+                      label: 'Mulai',
+                      date: _mulai,
+                      onPick: (d) => setState(() => _mulai = d)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _DateBtn(label: 'Berakhir', date: _berakhir, onPick: (d) => setState(() => _berakhir = d)),
+                  child: _DateBtn(
+                      label: 'Berakhir',
+                      date: _berakhir,
+                      onPick: (d) => setState(() => _berakhir = d)),
                 ),
               ],
             ),
@@ -402,16 +435,22 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isSaving
                     ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
                     : Text(
-                        widget.assignment == null ? 'Buat Assignment' : 'Simpan Perubahan',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        widget.assignment == null
+                            ? 'Buat Assignment'
+                            : 'Simpan Perubahan',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -427,7 +466,8 @@ class _DateBtn extends StatelessWidget {
   final String label;
   final DateTime date;
   final void Function(DateTime) onPick;
-  const _DateBtn({required this.label, required this.date, required this.onPick});
+  const _DateBtn(
+      {required this.label, required this.date, required this.onPick});
 
   @override
   Widget build(BuildContext context) {
@@ -451,11 +491,14 @@ class _DateBtn extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.textMuted)),
             const SizedBox(height: 2),
             Text(
               DateFormat('dd MMM yyyy').format(date),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ],
         ),

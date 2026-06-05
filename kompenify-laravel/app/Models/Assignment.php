@@ -22,4 +22,10 @@ class Assignment extends Model
         'status',
         'dosen_id',
     ];
+
+    // Relasi ke User (dosen)
+    public function dosen()
+    {
+        return $this->belongsTo(User::class, 'dosen_id');
+    }
 }

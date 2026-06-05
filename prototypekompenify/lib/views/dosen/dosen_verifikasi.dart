@@ -1,34 +1,32 @@
+// lib/views/dosen/dosen_verifikasi.dart
+// ✅ Sudah tersambung ke API Laravel
+// Perubahan dari versi lama:
+//   - Data pengajuan dari svc.pengajuanMasuk (API real, bukan statis)
+//   - Tombol "Berikan E-TTD" → svc.updateStatusPengajuan(id, 'diterima')
+//   - Tombol "Minta Revisi"  → svc.updateStatusPengajuan(id, 'ditolak')
+//   - Status dari API: 'pending', 'diterima', 'ditolak'
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import '../../controllers/data_service.dart';
+import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
-import '../../models/models.dart';
 
-// ─── Dosen Verifikasi ─────────────────────────────────────────────────────────
 class DosenVerifikasi extends StatelessWidget {
   const DosenVerifikasi({super.key});
 
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
-    final user = svc.currentUser!;
-    // Konversi user.id ke String
-    final list = svc
-        .getPengajuan(dosenId: user.id.toString())
-        .where(
-          (p) =>
-              p.status == KompenStatus.proses ||
-              p.status == KompenStatus.menunggu,
-        )
+
+    // Dari API: status 'pending' = menunggu verifikasi
+    final list = svc.pengajuanMasuk
+        .where((p) => p.status == 'pending')
         .toList();
-    final history = svc
-        .getPengajuan(dosenId: user.id.toString())
-        .where(
-          (p) =>
-              p.status != KompenStatus.proses &&
-              p.status != KompenStatus.menunggu,
-        )
+    final history = svc.pengajuanMasuk
+        .where((p) => p.status != 'pending')
         .toList();
 
     return GradientBackground(
@@ -40,21 +38,13 @@ class DosenVerifikasi extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Verifikasi Kompen',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    '${list.length} menunggu verifikasi',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
+                  const Text('Verifikasi Kompen',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  Text('${list.length} menunggu verifikasi',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 ],
               ),
             ),
-            // 📝 GANTI BAGIAN EXPANDED-NYA DENGAN INI
             Expanded(
               child: RefreshIndicator(
                 color: AppTheme.primary,
@@ -72,20 +62,14 @@ class DosenVerifikasi extends StatelessWidget {
                           title: 'Tidak ada yang perlu diverifikasi',
                         ),
                       )
-                    else ...[
+                    else
                       ...list.map((p) => _VerifikasiCard(pengajuan: p)),
-                    ],
                     if (history.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      const Text(
-                        'Riwayat',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      const Text('Riwayat',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
-                      ...history.map((p) => KompenCard(pengajuan: p)),
+                      ...history.map((p) => _RiwayatCard(pengajuan: p)),
                     ],
                   ],
                 ),
@@ -98,8 +82,9 @@ class DosenVerifikasi extends StatelessWidget {
   }
 }
 
+// ─── Card pengajuan pending (bisa terima/tolak) ───────────────────────────────
 class _VerifikasiCard extends StatelessWidget {
-  final PengajuanKompen pengajuan;
+  final PengajuanModel pengajuan;
   const _VerifikasiCard({required this.pengajuan});
 
   @override
@@ -111,235 +96,165 @@ class _VerifikasiCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppTheme.cardGradient,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentOrange.withOpacity(0.4),
-          width: 1.5,
-        ),
+        border: Border.all(color: AppTheme.accentOrange.withOpacity(0.4), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  p.mahasiswaNama,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
+          Row(children: [
+            Expanded(
+              child: Text(
+                p.mahasiswaNama ?? 'Mahasiswa',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               ),
-              StatusBadge(label: p.statusLabel, color: p.statusColor),
-            ],
-          ),
+            ),
+            StatusBadge(label: p.statusLabel, color: p.statusColor),
+          ]),
           const SizedBox(height: 4),
-          Text(
-            p.mahasiswaNim,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-          ),
+          Text(p.mahasiswaNim ?? '-',
+              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           const SizedBox(height: 10),
           InfoRow(
             icon: Icons.assignment_outlined,
             label: 'Assignment',
-            value: p.assignmentJudul,
+            value: p.assignmentJudul ?? '-',
           ),
           InfoRow(
             icon: Icons.schedule_outlined,
             label: 'Jam',
-            value: '${p.jamKompen} jam',
+            value: '${p.assignmentJamKompen ?? 0} jam',
           ),
-          if (p.buktiFotoPath != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.accentGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.attach_file,
-                    color: AppTheme.accentGreen,
-                    size: 16,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Bukti sudah diupload',
-                    style: TextStyle(color: AppTheme.accentGreen, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.accentOrange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.upload_file_outlined,
-                    color: AppTheme.accentOrange,
-                    size: 16,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Menunggu mahasiswa upload bukti',
-                    style: TextStyle(
-                      color: AppTheme.accentOrange,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (p.buktiFotoPath != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _reject(context, p),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: AppTheme.accentRed,
-                    ),
-                    label: const Text(
-                      'Minta Revisi',
-                      style: TextStyle(color: AppTheme.accentRed, fontSize: 12),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.accentRed),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _approve(context, p),
-                    icon: const Icon(Icons.draw_outlined, size: 16),
-                    label: const Text(
-                      'Berikan E-TTD',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accentGreen,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _approve(BuildContext context, PengajuanKompen p) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.bgCard,
-        title: const Row(
-          children: [
-            Icon(Icons.draw_outlined, color: AppTheme.accentGreen),
-            SizedBox(width: 8),
-            Text('Berikan E-TTD'),
-          ],
-        ),
-        content: Text(
-          'Setujui dan tandatangani kompen ${p.mahasiswaNama} untuk "${p.assignmentJudul}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+          InfoRow(
+            icon: Icons.calendar_today_outlined,
+            label: 'Diajukan',
+            value: timeago.format(DateTime.tryParse(p.createdAt) ?? DateTime.now(), locale: 'id'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              context.read<DataService>().verifikasiDosen(p.id, true);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '✅ E-TTD berhasil diberikan! Notifikasi dikirim ke Kaprodi.',
-                  ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showTolakDialog(context, p),
+                icon: const Icon(Icons.close_rounded, size: 16, color: AppTheme.accentRed),
+                label: const Text('Tolak', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.accentRed),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _showTerimaDialog(context, p),
+                icon: const Icon(Icons.draw_outlined, size: 16),
+                label: const Text('Terima', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.accentGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentGreen,
+              ),
             ),
-            child: const Text('Setujui & TTD'),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  void _showTerimaDialog(BuildContext context, PengajuanModel p) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: const Row(children: [
+          Icon(Icons.draw_outlined, color: AppTheme.accentGreen),
+          SizedBox(width: 8),
+          Text('Terima Pengajuan'),
+        ]),
+        content: Text(
+          'Terima kompen ${p.mahasiswaNama ?? "mahasiswa"} untuk "${p.assignmentJudul ?? "-"}"?\n\nMahasiswa lain yang pending akan otomatis ditolak.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // ✅ Kirim ke PUT /api/dosen/pengajuan-kompen/{id}/status
+              final result = await context.read<DataService>().updateStatusPengajuan(p.id, 'diterima');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(result['success'] == true
+                      ? '✅ Pengajuan diterima! Notifikasi dikirim ke mahasiswa.'
+                      : '❌ ${result['message']}'),
+                  backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
+                ));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
+            child: const Text('Terima'),
           ),
         ],
       ),
     );
   }
 
-  void _reject(BuildContext context, PengajuanKompen p) {
-    final ctrl = TextEditingController();
+  void _showTolakDialog(BuildContext context, PengajuanModel p) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: const Text('Minta Revisi'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Berikan catatan untuk mahasiswa:',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Masukkan catatan revisi...',
-              ),
-            ),
-          ],
-        ),
+        title: const Text('Tolak Pengajuan'),
+        content: const Text('Yakin ingin menolak pengajuan ini?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
-            onPressed: () {
-              context.read<DataService>().verifikasiDosen(
-                p.id,
-                false,
-                catatan: ctrl.text,
-              );
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '📝 Revisi diminta. Notifikasi dikirim ke mahasiswa.',
-                  ),
-                  backgroundColor: AppTheme.accentOrange,
-                ),
-              );
+              // ✅ Kirim ke PUT /api/dosen/pengajuan-kompen/{id}/status
+              final result = await context.read<DataService>().updateStatusPengajuan(p.id, 'ditolak');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(result['success'] == true
+                      ? '❌ Pengajuan ditolak. Notifikasi dikirim ke mahasiswa.'
+                      : '❌ ${result['message']}'),
+                  backgroundColor: result['success'] == true ? AppTheme.accentOrange : AppTheme.accentRed,
+                ));
+              }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentOrange,
-            ),
-            child: const Text('Kirim Revisi'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
+            child: const Text('Tolak'),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Card riwayat (sudah diproses) ───────────────────────────────────────────
+class _RiwayatCard extends StatelessWidget {
+  final PengajuanModel pengajuan;
+  const _RiwayatCard({required this.pengajuan});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pengajuan;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(p.mahasiswaNama ?? 'Mahasiswa',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 2),
+          Text(p.assignmentJudul ?? '-',
+              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        ])),
+        StatusBadge(label: p.statusLabel, color: p.statusColor),
+      ]),
     );
   }
 }
