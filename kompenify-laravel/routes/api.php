@@ -2,12 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
-
-/*
-|--------------------------------------------------------------------------
-| API Routes Utama - E-Kompenify
-|--------------------------------------------------------------------------
-*/
+use App\Http\Controllers\Api\NotifikasiController;
 
 // 1. GERBANG PUBLIK (Bisa diakses tanpa login / tanpa token)
 Route::post('/login', [AuthController::class, 'login']);
@@ -21,6 +16,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Fitur Logout Global
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/notifikasi', [NotifikasiController::class, 'getNotifikasi']);
+    Route::put('/notifikasi/{id}/read', [NotifikasiController::class, 'markAsRead']);
+    Route::put('/notifikasi/read-all', [NotifikasiController::class, 'markAllAsRead']);
 
     // OTOMATIS MEMANGGIL SEMUA FILE API YANG KAMU BUAT TADI
     require __DIR__ . '/api/admin_api.php';
