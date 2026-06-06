@@ -1,11 +1,4 @@
 // lib/views/dosen/dosen_verifikasi.dart
-// ✅ Sudah tersambung ke API Laravel
-// Perubahan dari versi lama:
-//   - Data pengajuan dari svc.pengajuanMasuk (API real, bukan statis)
-//   - Tombol "Berikan E-TTD" → svc.updateStatusPengajuan(id, 'diterima')
-//   - Tombol "Minta Revisi"  → svc.updateStatusPengajuan(id, 'ditolak')
-//   - Status dari API: 'pending', 'diterima', 'ditolak'
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -25,7 +18,6 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
   @override
   void initState() {
     super.initState();
-    // GET | Otomatis panggil API menunggu verifikasi saat halaman pertama kali dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DataService>().fetchPengajuanMenungguVerifikasi();
     });
@@ -35,13 +27,19 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
 
-    // Memfilter data status pending (menunggu verifikasi)
+    // 🚀 FILTER WORKFLOW BARU: Masuk tab "Perlu Diproses" jika butuh approval awal ATAU butuh TTD
     final list = svc.pengajuanMenungguVerifikasi
-        .where((p) => p.statusLabel == 'Menunggu Verifikasi')
+        .where(
+          (p) =>
+              p.status == 'pending' ||
+              p.status == 'menunggu_ttd_dosen' ||
+              p.status == 'menunggu_ttd_kaprodi',
+        )
         .toList();
 
+    // Masuk tab "Riwayat" jika sudah final (diterima/ditolak)
     final history = svc.pengajuanMenungguVerifikasi
-        .where((p) => p.statusLabel != 'Menunggu Verifikasi')
+        .where((p) => p.status == 'diterima' || p.status == 'ditolak')
         .toList();
 
     return GradientBackground(
@@ -54,11 +52,11 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Verifikasi Kompen',
+                    'Verifikasi & E-TTD Kompen',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    '${list.length} menunggu verifikasi',
+                    '${list.length} tugas aktif perlu diproses',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary,
@@ -71,7 +69,6 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                // Menggunakan fungsi refresh bawaan yang sudah kita update
                 onRefresh: () => context.read<DataService>().refreshDataDosen(),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -82,7 +79,7 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
                         padding: EdgeInsets.only(top: 100),
                         child: EmptyState(
                           icon: Icons.inbox_outlined,
-                          title: 'Tidak ada yang perlu diverifikasi',
+                          title: 'Semua tugas bersih terproses!',
                         ),
                       )
                     else
@@ -90,7 +87,7 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
                     if (history.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Text(
-                        'Riwayat',
+                        'Riwayat Pengajuan Final',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -110,10 +107,39 @@ class _DosenVerifikasiState extends State<DosenVerifikasi> {
   }
 }
 
-// ─── Card pengajuan pending (bisa terima/tolak) ───────────────────────────────
+// ─── CARD VERIFIKASI DENGAN TOMBOL DINAMIS WORKFLOW ───────────────────────────
 class _VerifikasiCard extends StatelessWidget {
   final PengajuanModel pengajuan;
   const _VerifikasiCard({required this.pengajuan});
+
+  // Fungsi pembantu untuk memicu proses TTD Digital berjenjang via API baru
+  void _eksekusiTandaTangan(
+    BuildContext context,
+    String id,
+    String roleLabel,
+  ) async {
+    // 🚀 Panggil API /ttd baru kelompokmu via DataService
+    // Pastikan di DataService tim kamu sudah ada fungsi beralur POST/POST: 'berikanTandaTangan(id)'
+    final result = await context.read<DataService>().updateStatusPengajuan(
+      id,
+      'ttd',
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success'] == true
+                ? '✓ E-TTD $roleLabel sukses disematkan! Kode QR aman ter-generate.'
+                : '❌ Gagal TTD: ${result['message']}',
+          ),
+          backgroundColor: result['success'] == true
+              ? AppTheme.accentGreen
+              : AppTheme.accentRed,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,10 +150,7 @@ class _VerifikasiCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppTheme.cardGradient,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentOrange.withOpacity(0.4),
-          width: 1.5,
-        ),
+        border: Border.all(color: p.statusColor.withOpacity(0.4), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,14 +194,13 @@ class _VerifikasiCard extends StatelessWidget {
             ),
           ),
 
-          // 🚀 TAMPILAN FOTO BUKTI / E-TTD MAHASISWA
+          // Tampilan Galeri Bukti Foto
           if (p.buktiFotos.isNotEmpty) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: TextButton.icon(
                 onPressed: () {
-                  // Memunculkan pop-up galeri foto saat tombol diklik
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
@@ -232,46 +254,107 @@ class _VerifikasiCard extends StatelessWidget {
           ],
 
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showTolakDialog(context, p),
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: AppTheme.accentRed,
-                  ),
-                  label: const Text(
-                    'Tolak',
-                    style: TextStyle(color: AppTheme.accentRed, fontSize: 12),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.accentRed),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showTerimaDialog(context, p),
-                  icon: const Icon(Icons.draw_outlined, size: 16),
-                  label: const Text('Terima', style: TextStyle(fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+
+          // 🚀 EKSEKUSI UTAMA: LOGIKA TOMBOL DINAMIS WORKFLOW BARU
+          if (p.status == 'pending') ...[
+            // TAHAP 1: Approval kelayakan awal tugas kompen
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showTolakDialog(context, p),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: AppTheme.accentRed,
+                    ),
+                    label: const Text(
+                      'Tolak',
+                      style: TextStyle(color: AppTheme.accentRed, fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.accentRed),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showTerimaDialog(context, p),
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: const Text(
+                      'Terima Kerja',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentGreen,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (p.status == 'menunggu_ttd_dosen') ...[
+            // TAHAP 2: Mahasiswa selesai ngerjain, Dosen bubuhkan TTD Digital
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _eksekusiTandaTangan(context, p.id, 'Dosen'),
+                icon: const Icon(
+                  Icons.draw_outlined,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Bubuhkan E-TTD Dosen',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C63FF), // Ungu Modis
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
-            ],
-          ),
+            ),
+          ] else if (p.status == 'menunggu_ttd_kaprodi') ...[
+            // TAHAP 3: Giliran meja Kaprodi yang eksekusi tanda tangan segel akhir
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _eksekusiTandaTangan(context, p.id, 'Kaprodi'),
+                icon: const Icon(
+                  Icons.verified_user_outlined,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Sahkan Sebagai Kaprodi (E-TTD)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(
+                    0xFF00B4D8,
+                  ), // Biru Segar Kaprodi
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
+// Dialog-dialog pendukung proses terima/tolak awal
 void _showTerimaDialog(BuildContext context, PengajuanModel p) {
   showDialog(
     context: context,
@@ -279,13 +362,13 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
       backgroundColor: AppTheme.bgCard,
       title: const Row(
         children: [
-          Icon(Icons.draw_outlined, color: AppTheme.accentGreen),
+          Icon(Icons.check_circle_outline, color: AppTheme.accentGreen),
           SizedBox(width: 8),
-          Text('Terima Pengajuan'),
+          Text('Setujui Pengajuan'),
         ],
       ),
       content: Text(
-        'Terima kompen ${p.mahasiswaNama ?? "mahasiswa"} untuk "${p.assignmentJudul ?? "-"}"?\n\nMahasiswa lain yang pending akan otomatis ditolak.',
+        'Setujui pengerjaan kompen oleh ${p.mahasiswaNama ?? "mahasiswa"}?\n\nStatus akan beralih ke penantian E-TTD pengerjaan.',
       ),
       actions: [
         TextButton(
@@ -295,16 +378,16 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
-            // ✅ Kirim ke PUT /api/dosen/pengajuan-kompen/{id}/status
+            // Naikin status dari pending -> menunggu_ttd_dosen
             final result = await context
                 .read<DataService>()
-                .updateStatusPengajuan(p.id, 'diterima');
+                .updateStatusPengajuan(p.id, 'menunggu_ttd_dosen');
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     result['success'] == true
-                        ? '✅ Pengajuan diterima! Notifikasi dikirim ke mahasiswa.'
+                        ? '✅ Berhasil disetujui! Status beralih ke tahap TTD.'
                         : '❌ ${result['message']}',
                   ),
                   backgroundColor: result['success'] == true
@@ -317,7 +400,7 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.accentGreen,
           ),
-          child: const Text('Terima'),
+          child: const Text('Setujui'),
         ),
       ],
     ),
@@ -330,7 +413,9 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
     builder: (_) => AlertDialog(
       backgroundColor: AppTheme.bgCard,
       title: const Text('Tolak Pengajuan'),
-      content: const Text('Yakin ingin menolak pengajuan ini?'),
+      content: const Text(
+        'Yakin ingin menolak pengajuan kompen mahasiswa ini?',
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -339,7 +424,6 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
-            // ✅ Kirim ke PUT /api/dosen/pengajuan-kompen/{id}/status
             final result = await context
                 .read<DataService>()
                 .updateStatusPengajuan(p.id, 'ditolak');
@@ -348,7 +432,7 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
                 SnackBar(
                   content: Text(
                     result['success'] == true
-                        ? '❌ Pengajuan ditolak. Notifikasi dikirim ke mahasiswa.'
+                        ? '❌ Pengajuan ditolak resmi.'
                         : '❌ ${result['message']}',
                   ),
                   backgroundColor: result['success'] == true
@@ -366,7 +450,7 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
   );
 }
 
-// ─── Card riwayat (sudah diproses) ───────────────────────────────────────────
+// ─── CARD RIWAYAT FINAL ──────────────────────────────────────────────────────
 class _RiwayatCard extends StatelessWidget {
   final PengajuanModel pengajuan;
   const _RiwayatCard({required this.pengajuan});
