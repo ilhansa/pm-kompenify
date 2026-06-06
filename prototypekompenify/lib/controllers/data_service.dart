@@ -101,29 +101,49 @@ class DataService extends ChangeNotifier {
     try {
       _assignmentsApi = await _dosenService.getAssignments(_token!);
       notifyListeners();
-    } catch (e) { debugPrint('Gagal fetch assignments: $e'); }
+    } catch (e) {
+      debugPrint('Gagal fetch assignments: $e');
+    }
   }
 
   Future<Map<String, dynamic>> addAssignmentApi({
-    required String judul, required String deskripsi,
-    required int jamKompen, required DateTime tanggalMulai, required DateTime tanggalSelesai,
+    required String judul,
+    required String deskripsi,
+    required int jamKompen,
+    required DateTime tanggalMulai,
+    required DateTime tanggalSelesai,
   }) async {
     if (_token == null) return {'success': false, 'message': 'Belum login'};
-    final result = await _dosenService.buatAssignment(_token!,
-      judul: judul, deskripsi: deskripsi, jamKompen: jamKompen,
-      tanggalMulai: _formatDate(tanggalMulai), tanggalSelesai: _formatDate(tanggalSelesai));
+    final result = await _dosenService.buatAssignment(
+      _token!,
+      judul: judul,
+      deskripsi: deskripsi,
+      jamKompen: jamKompen,
+      tanggalMulai: _formatDate(tanggalMulai),
+      tanggalSelesai: _formatDate(tanggalSelesai),
+    );
     if (result['success'] == true) await fetchAssignments();
     return result;
   }
 
-  Future<Map<String, dynamic>> editAssignmentApi(String id, {
-    required String judul, required String deskripsi,
-    required int jamKompen, required DateTime tanggalMulai, required DateTime tanggalSelesai,
+  Future<Map<String, dynamic>> editAssignmentApi(
+    String id, {
+    required String judul,
+    required String deskripsi,
+    required int jamKompen,
+    required DateTime tanggalMulai,
+    required DateTime tanggalSelesai,
   }) async {
     if (_token == null) return {'success': false, 'message': 'Belum login'};
-    final result = await _dosenService.editAssignment(_token!, id,
-      judul: judul, deskripsi: deskripsi, jamKompen: jamKompen,
-      tanggalMulai: _formatDate(tanggalMulai), tanggalSelesai: _formatDate(tanggalSelesai));
+    final result = await _dosenService.editAssignment(
+      _token!,
+      id,
+      judul: judul,
+      deskripsi: deskripsi,
+      jamKompen: jamKompen,
+      tanggalMulai: _formatDate(tanggalMulai),
+      tanggalSelesai: _formatDate(tanggalSelesai),
+    );
     if (result['success'] == true) await fetchAssignments();
     return result;
   }
@@ -144,15 +164,29 @@ class DataService extends ChangeNotifier {
     if (_token == null || _currentUser == null) return;
     final role = _currentUser!.role == api.UserRole.dosen ? 'dosen' : 'kaprodi';
     try {
-      _pengajuanMasuk = await _pengajuanService.getPengajuanMasuk(_token!, role);
+      _pengajuanMasuk = await _pengajuanService.getPengajuanMasuk(
+        _token!,
+        role,
+      );
       notifyListeners();
-    } catch (e) { debugPrint('Gagal fetch pengajuan masuk: $e'); }
+    } catch (e) {
+      debugPrint('Gagal fetch pengajuan masuk: $e');
+    }
   }
 
-  Future<Map<String, dynamic>> updateStatusPengajuan(String pengajuanId, String status) async {
-    if (_token == null || _currentUser == null) return {'success': false, 'message': 'Belum login'};
+  Future<Map<String, dynamic>> updateStatusPengajuan(
+    String pengajuanId,
+    String status,
+  ) async {
+    if (_token == null || _currentUser == null)
+      return {'success': false, 'message': 'Belum login'};
     final role = _currentUser!.role == api.UserRole.dosen ? 'dosen' : 'kaprodi';
-    final result = await _pengajuanService.updateStatus(_token!, role, pengajuanId, status);
+    final result = await _pengajuanService.updateStatus(
+      _token!,
+      role,
+      pengajuanId,
+      status,
+    );
     if (result['success'] == true) await fetchPengajuanMasuk();
     return result;
   }
@@ -164,7 +198,9 @@ class DataService extends ChangeNotifier {
     try {
       _assignmentsMahasiswa = await _mhsService.getAssignmentAktif(_token!);
       notifyListeners();
-    } catch (e) { debugPrint('Gagal fetch assignment mahasiswa: $e'); }
+    } catch (e) {
+      debugPrint('Gagal fetch assignment mahasiswa: $e');
+    }
   }
 
   Future<void> fetchPengajuanSaya() async {
@@ -172,7 +208,9 @@ class DataService extends ChangeNotifier {
     try {
       _pengajuanSaya = await _mhsService.getPengajuanSaya(_token!);
       notifyListeners();
-    } catch (e) { debugPrint('Gagal fetch pengajuan saya: $e'); }
+    } catch (e) {
+      debugPrint('Gagal fetch pengajuan saya: $e');
+    }
   }
 
   Future<Map<String, dynamic>> ajukanKompen(String assignmentId) async {
@@ -198,7 +236,9 @@ class DataService extends ChangeNotifier {
       _notifikasiList = result['data'] as List<NotifikasiModel>;
       _unreadCount = result['unread_count'] as int;
       notifyListeners();
-    } catch (e) { debugPrint('Gagal fetch notifikasi: $e'); }
+    } catch (e) {
+      debugPrint('Gagal fetch notifikasi: $e');
+    }
   }
 
   Future<void> markNotifikasiAsRead(String id) async {
@@ -209,24 +249,42 @@ class DataService extends ChangeNotifier {
       if (idx >= 0) {
         final n = _notifikasiList[idx];
         _notifikasiList[idx] = NotifikasiModel(
-          id: n.id, userId: n.userId, judul: n.judul,
-          pesan: n.pesan, isRead: true, createdAt: n.createdAt);
+          id: n.id,
+          userId: n.userId,
+          judul: n.judul,
+          pesan: n.pesan,
+          isRead: true,
+          createdAt: n.createdAt,
+        );
         _unreadCount = _notifikasiList.where((n) => !n.isRead).length;
         notifyListeners();
       }
-    } catch (e) { debugPrint('Gagal mark as read: $e'); }
+    } catch (e) {
+      debugPrint('Gagal mark as read: $e');
+    }
   }
 
   Future<void> markAllNotifikasiAsRead() async {
     if (_token == null) return;
     try {
       await _notifikasiService.markAllAsRead(_token!);
-      _notifikasiList = _notifikasiList.map((n) => NotifikasiModel(
-        id: n.id, userId: n.userId, judul: n.judul,
-        pesan: n.pesan, isRead: true, createdAt: n.createdAt)).toList();
+      _notifikasiList = _notifikasiList
+          .map(
+            (n) => NotifikasiModel(
+              id: n.id,
+              userId: n.userId,
+              judul: n.judul,
+              pesan: n.pesan,
+              isRead: true,
+              createdAt: n.createdAt,
+            ),
+          )
+          .toList();
       _unreadCount = 0;
       notifyListeners();
-    } catch (e) { debugPrint('Gagal mark all as read: $e'); }
+    } catch (e) {
+      debugPrint('Gagal mark all as read: $e');
+    }
   }
 
   // ─── REFRESH ────────────────────────────────────────────────────────────────
@@ -236,12 +294,15 @@ class DataService extends ChangeNotifier {
     try {
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';
       final res = await _authService.getLatestProfile(_token!, baseUrl);
-      if (res != null && res['success'] == true) _currentUser = api.UserModel.fromJson(res['user']);
+      if (res != null && res['success'] == true)
+        _currentUser = api.UserModel.fromJson(res['user']);
       await fetchAssignmentMahasiswa();
       await fetchPengajuanSaya();
       await fetchNotifikasi();
       notifyListeners();
-    } catch (e) { debugPrint('Gagal refresh mahasiswa: $e'); }
+    } catch (e) {
+      debugPrint('Gagal refresh mahasiswa: $e');
+    }
   }
 
   Future<void> refreshDataDosen() async {
@@ -249,11 +310,14 @@ class DataService extends ChangeNotifier {
     try {
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';
       final res = await _authService.getLatestProfile(_token!, baseUrl);
-      if (res != null && res['success'] == true) _currentUser = api.UserModel.fromJson(res['user']);
+      if (res != null && res['success'] == true)
+        _currentUser = api.UserModel.fromJson(res['user']);
       await fetchAssignments();
       await fetchPengajuanMasuk();
       await fetchNotifikasi();
-    } catch (e) { debugPrint('Gagal refresh dosen: $e'); }
+    } catch (e) {
+      debugPrint('Gagal refresh dosen: $e');
+    }
   }
 
   Future<void> refreshDataKaprodi() async {
@@ -261,11 +325,14 @@ class DataService extends ChangeNotifier {
     try {
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://127.0.0.1:8000/api';
       final res = await _authService.getLatestProfile(_token!, baseUrl);
-      if (res != null && res['success'] == true) _currentUser = api.UserModel.fromJson(res['user']);
+      if (res != null && res['success'] == true)
+        _currentUser = api.UserModel.fromJson(res['user']);
       await fetchAssignments();
       await fetchPengajuanMasuk();
       await fetchNotifikasi();
-    } catch (e) { debugPrint('Gagal refresh kaprodi: $e'); }
+    } catch (e) {
+      debugPrint('Gagal refresh kaprodi: $e');
+    }
   }
 
   // ─── HELPER ─────────────────────────────────────────────────────────────────
@@ -277,25 +344,96 @@ class DataService extends ChangeNotifier {
 
   User? get staticCurrentUser => _staticService.currentUser;
   List<User> getUsers({UserRole? role}) => _staticService.getUsers(role: role);
-  void addUser(User u) { _staticService.addUser(u); notifyListeners(); }
-  void updateUser(User u) { _staticService.updateUser(u); notifyListeners(); }
-  void deleteUser(String id) { _staticService.deleteUser(id); notifyListeners(); }
-  List<Assignment> getAssignments({String? dosenId, bool availableOnly = false}) =>
-      _staticService.getAssignments(dosenId: dosenId, availableOnly: availableOnly);
-  void addAssignment(Assignment a) { _staticService.addAssignment(a); notifyListeners(); }
-  void updateAssignment(Assignment a) { _staticService.updateAssignment(a); notifyListeners(); }
-  void deleteAssignment(String id) { _staticService.deleteAssignment(id); notifyListeners(); }
-  bool pilihAssignment(String aId, String mId) { final r = _staticService.pilihAssignment(aId, mId); notifyListeners(); return r; }
-  List<PengajuanKompen> getPengajuan({String? mahasiswaId, String? dosenId, KompenStatus? status}) =>
-      _staticService.getPengajuan(mahasiswaId: mahasiswaId, dosenId: dosenId, status: status);
-  void addPengajuan(PengajuanKompen p) { _staticService.addPengajuan(p); notifyListeners(); }
-  void uploadBukti(String id, String path) { _staticService.uploadBukti(id, path); notifyListeners(); }
-  void cancelPengajuan(String id) { _staticService.cancelPengajuan(id); notifyListeners(); }
-  void verifikasiDosen(String id, bool ok, {String? catatan}) { _staticService.verifikasiDosen(id, ok, catatan: catatan); notifyListeners(); }
-  void approvalKaprodi(String id, bool ok, {String? catatan}) { _staticService.approvalKaprodi(id, ok, catatan: catatan); notifyListeners(); }
-  List<Notifikasi> getNotifikasi(String userId) => _staticService.getNotifikasi(userId);
+  void addUser(User u) {
+    _staticService.addUser(u);
+    notifyListeners();
+  }
+
+  void updateUser(User u) {
+    _staticService.updateUser(u);
+    notifyListeners();
+  }
+
+  void deleteUser(String id) {
+    _staticService.deleteUser(id);
+    notifyListeners();
+  }
+
+  List<Assignment> getAssignments({
+    String? dosenId,
+    bool availableOnly = false,
+  }) => _staticService.getAssignments(
+    dosenId: dosenId,
+    availableOnly: availableOnly,
+  );
+  void addAssignment(Assignment a) {
+    _staticService.addAssignment(a);
+    notifyListeners();
+  }
+
+  void updateAssignment(Assignment a) {
+    _staticService.updateAssignment(a);
+    notifyListeners();
+  }
+
+  void deleteAssignment(String id) {
+    _staticService.deleteAssignment(id);
+    notifyListeners();
+  }
+
+  bool pilihAssignment(String aId, String mId) {
+    final r = _staticService.pilihAssignment(aId, mId);
+    notifyListeners();
+    return r;
+  }
+
+  List<PengajuanKompen> getPengajuan({
+    String? mahasiswaId,
+    String? dosenId,
+    KompenStatus? status,
+  }) => _staticService.getPengajuan(
+    mahasiswaId: mahasiswaId,
+    dosenId: dosenId,
+    status: status,
+  );
+  void addPengajuan(PengajuanKompen p) {
+    _staticService.addPengajuan(p);
+    notifyListeners();
+  }
+
+  void uploadBukti(String id, String path) {
+    _staticService.uploadBukti(id, path);
+    notifyListeners();
+  }
+
+  void cancelPengajuan(String id) {
+    _staticService.cancelPengajuan(id);
+    notifyListeners();
+  }
+
+  void verifikasiDosen(String id, bool ok, {String? catatan}) {
+    _staticService.verifikasiDosen(id, ok, catatan: catatan);
+    notifyListeners();
+  }
+
+  void approvalKaprodi(String id, bool ok, {String? catatan}) {
+    _staticService.approvalKaprodi(id, ok, catatan: catatan);
+    notifyListeners();
+  }
+
+  List<Notifikasi> getNotifikasi(String userId) =>
+      _staticService.getNotifikasi(userId);
   int getUnreadCount(String userId) => _staticService.getUnreadCount(userId);
-  void markAsRead(String id) { _staticService.markAsRead(id); notifyListeners(); }
-  void markAllAsRead(String userId) { _staticService.markAllAsRead(userId); notifyListeners(); }
-  RekapKompen getRekap(String mahasiswaId) => _staticService.getRekap(mahasiswaId);
+  void markAsRead(String id) {
+    _staticService.markAsRead(id);
+    notifyListeners();
+  }
+
+  void markAllAsRead(String userId) {
+    _staticService.markAllAsRead(userId);
+    notifyListeners();
+  }
+
+  RekapKompen getRekap(String mahasiswaId) =>
+      _staticService.getRekap(mahasiswaId);
 }

@@ -109,9 +109,9 @@ class PengajuanKompenController extends Controller
         }
 
         try {
-            // 3. Ambil semua pengajuan milik mahasiswa ini
-            // (Ditambah orderBy supaya pengajuan terbaru ada di paling atas)
+            // 3. Ambil semua pengajuan milik mahasiswa ini beserta tugas dan buktinya
             $riwayatPengajuan = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
+                                               ->with(['assignment', 'bukti'])
                                                ->orderBy('created_at', 'desc')
                                                ->get();
 
@@ -150,7 +150,7 @@ class PengajuanKompenController extends Controller
         }
 
         // 3. Cari detail pengajuan berdasarkan ID UUID
-        $pengajuan = PengajuanKompen::find($id);
+        $pengajuan = PengajuanKompen::with('bukti')->find($id);
 
         if (!$pengajuan) {
             return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
@@ -249,15 +249,16 @@ class PengajuanKompenController extends Controller
             // 2. KUMPULKAN SEMUA ID TUGAS MILIK PEMBERI KOMPEN INI
             $assignmentIds = \App\Models\Assignment::where('dosen_id', $user->id)->pluck('id');
 
-            // 3. CARI PENGAJUAN YANG MASUK KE TUGAS-TUGAS TERSEBUT
+            // 3. CARI PENGAJUAN YANG MASUK KE TUGAS-TUGAS TERSEBUT (KHUSUS PENDING)
             $pengajuans = PengajuanKompen::whereIn('assignment_id', $assignmentIds)
-                                         ->with(['mahasiswa', 'assignment']) 
+                                         ->where('status', 'pending')
+                                         ->with(['mahasiswa', 'assignment'])
                                          ->orderBy('created_at', 'desc')
                                          ->get();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Berhasil mengambil daftar pelamar kompen',
+                'message' => 'Berhasil mengambil daftar pelamar baru',
                 'data'    => $pengajuans
             ], 200);
 
@@ -306,7 +307,7 @@ class PengajuanKompenController extends Controller
         try {
             // 4. Ambil semua pengajuan KHUSUS untuk assignment_id ini saja
             $pengajuans = PengajuanKompen::where('assignment_id', $assignment_id)
-                                      ->with('mahasiswa') 
+                                      ->with(['mahasiswa', 'bukti'])
                                       ->orderBy('created_at', 'desc')
                                       ->get();
 
@@ -408,6 +409,50 @@ class PengajuanKompenController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memproses: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    // PUT: TANDAI TUGAS SELESAI OLEH MAHASISWA
+    public function tandaiSelesai(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'mhs') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        }
+
+        // 1. Cari data pengajuannya
+        $pengajuan = PengajuanKompen::find($id);
+
+        if (!$pengajuan) {
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan!'], 404);
+        }
+
+        // 2. Satpam Keamanan: Cek apakah ini benar-benar tugas miliknya
+        $mahasiswa = \App\Models\Mahasiswa::where('user_id', $user->id)->first();
+        if ($pengajuan->mahasiswa_id !== $mahasiswa->id) {
+             return response()->json(['success' => false, 'message' => 'Bukan tugasmu, Bos!'], 403);
+        }
+
+        // 3. Update statusnya
+        // Catatan: Pastikan teks status ini sesuai dengan yang kamu izinkan di database (enum)
+        // Biasanya kalau mahasiswa yang submit, statusnya berubah jadi 'menunggu_verifikasi' atau 'selesai'
+        try {
+            $pengajuan->update([
+                'status' => 'menunggu_verifikasi'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tugas berhasil disubmit! Menunggu penilaian dari Dosen.',
+                'data' => $pengajuan
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengubah status: ' . $e->getMessage()
             ], 500);
         }
     }

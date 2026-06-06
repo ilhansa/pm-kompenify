@@ -32,4 +32,9 @@ class PengajuanKompen extends Model
     {
         return $this->belongsTo(Mahasiswa::class, 'mahasiswa_id');
     }
+
+    public function bukti()
+    {
+        return $this->hasMany(BuktiKompen::class, 'pengajuan_id');
+    }
 }
