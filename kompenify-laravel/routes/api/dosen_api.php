@@ -29,6 +29,10 @@ Route::prefix('dosen')->group(function () {
 
     // 7. menerima/menolak pengajuan
     Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
-    // GET | Lihat daftar tugas yang menunggu ACC/TTD
+    
+    // 8. GET | Lihat daftar tugas yang menunggu ACC/TTD
     Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
+    
+    // 9. dosen kasih ttd
+    Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
 });

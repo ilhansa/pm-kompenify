@@ -450,43 +450,68 @@ class PengajuanKompenController extends Controller
         }
     }
 
-    // ==========================================
-    // GET: DAFTAR TUGAS MENUNGGU VERIFIKASI (KHUSUS DOSEN)
-    // ==========================================
+    // GET: DAFTAR TUGAS MENUNGGU VERIFIKASI (KHUSUS DOSEN & KAPRODI)
     public function indexMenungguVerifikasi(Request $request)
     {
         $user = $request->user();
 
-        // Pastikan yang akses beneran dosen atau kaprodi
-        if (!in_array($user->role, ['dosen', 'kaprodi'])) {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
-        }
-
         try {
-            // 🚀 MODIFIKASI: Menambahkan 'mahasiswa.user' ke dalam array with()
-            $pengajuan = PengajuanKompen::with([
-                    'assignment', 
-                    'bukti', 
-                    'mahasiswa.user' // <--- SAKTI: Ini yang bikin NIM & Nama Mahasiswa ikut terbang ke Flutter
-                ])
-                // Filter 1: Statusnya harus 'menunggu_verifikasi'
-                ->where('status', 'menunggu_verifikasi')
-                // Filter 2: Assignment-nya harus milik dosen ini
-                ->whereHas('assignment', function ($query) use ($user) {
-                    $query->where('dosen_id', $user->id);
-                })
-                ->get();
+            $query = PengajuanKompen::with(['assignment', 'bukti', 'mahasiswa.user']);
+
+            // Jika yang login DOSEN biasa
+            if ($user->role === 'dosen') {
+                $query->whereIn('status', ['pending', 'menunggu_ttd_dosen'])
+                    ->whereHas('assignment', function ($q) use ($user) {
+                        $q->where('dosen_id', $user->id);
+                    });
+            }
+            // Jika yang login KAPRODI
+            else if ($user->role === 'kaprodi') {
+                $query->where('status', 'menunggu_ttd_kaprodi');
+            } else {
+                return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+            }
+
+            $pengajuan = $query->get();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Berhasil mengambil data tugas yang menunggu verifikasi',
                 'data' => $pengajuan
             ], 200);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function berikanTandaTangan(Request $request, $id)
+{
+    $user = $request->user();
+    $pengajuan = PengajuanKompen::findOrFail($id);
+    
+    // Generate string token unik untuk penanda keabsahan QR di PDF nanti
+    $token = 'E-KOMPEN-' . strtoupper(Str::random(10)) . '-' . time();
+
+    if ($user->role === 'dosen') {
+        $pengajuan->qr_token_dosen = $token;
+        $pengajuan->save();
+        return response()->json([
+            'success' => true, 
+            'message' => 'E-TTD Dosen Berhasil disematkan!'
+        ]);
+    }
+
+    if ($user->role === 'kaprodi') {
+        $pengajuan->qr_token_kaprodi = $token;
+        $pengajuan->save();
+        return response()->json([
+            'success' => true, 
+            'message' => 'E-TTD Kaprodi Berhasil disematkan!'
+        ]);
+    }
+
+    return response()->json([
+        'success' => false, 
+        'message' => 'Role Anda tidak memiliki akses TTD.'
+    ], 403);
+}
 }
