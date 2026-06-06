@@ -457,15 +457,18 @@ class PengajuanKompenController extends Controller
     {
         $user = $request->user();
 
-        // Pastikan yang akses beneran dosen
-        // Ganti pengecekan role lama dengan ini:
+        // Pastikan yang akses beneran dosen atau kaprodi
         if (!in_array($user->role, ['dosen', 'kaprodi'])) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
         }
 
         try {
-            // Ambil pengajuan dengan status 'selesai' milik dosen yang sedang login
-            $pengajuan = PengajuanKompen::with(['assignment', 'bukti'])
+            // 🚀 MODIFIKASI: Menambahkan 'mahasiswa.user' ke dalam array with()
+            $pengajuan = PengajuanKompen::with([
+                    'assignment', 
+                    'bukti', 
+                    'mahasiswa.user' // <--- SAKTI: Ini yang bikin NIM & Nama Mahasiswa ikut terbang ke Flutter
+                ])
                 // Filter 1: Statusnya harus 'menunggu_verifikasi'
                 ->where('status', 'menunggu_verifikasi')
                 // Filter 2: Assignment-nya harus milik dosen ini
