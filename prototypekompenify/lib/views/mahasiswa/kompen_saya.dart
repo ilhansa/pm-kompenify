@@ -7,6 +7,7 @@ import '../../controllers/data_service.dart';
 import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class KompenSayaScreen extends StatelessWidget {
   const KompenSayaScreen({super.key});
@@ -388,14 +389,37 @@ class _BuktiFotoSection extends StatelessWidget {
   const _BuktiFotoSection({required this.pengajuan});
 
   String _fixUrl(String url) {
-    // Alihkan langsung endpoint lokal ke domain Ngrok aktifmu agar HP bisa akses via internet
-    const String ngrokDomain = 'https://lid-shrill-pelvis.ngrok-free.dev';
+    // 1. Bersihkan url gambar dari kata '/api/storage/' jika tidak sengaja terbawa dari backend
+    String cleanUrl = url.replaceAll('/api/storage/', '/storage/');
     
-    if (url.contains('storage/')) {
-      final String pathSetelahStorage = url.split('storage/')[1];
-      return '$ngrokDomain/storage/$pathSetelahStorage';
+    // 2. Ambil URL dari .env (bisa NGROK_URL atau BASE_URL sesuai nama variabel di .env kamu)
+    String? domain = dotenv.env['NGROK_URL'] ?? dotenv.env['BASE_URL'];
+    
+    if (domain != null && domain.isNotEmpty) {
+      // 3. POTONG /API DI SINI: Jika di .env kamu ujungnya ada '/api', kita buang khusus untuk foto
+      if (domain.endsWith('/api')) {
+        domain = domain.substring(0, domain.length - 4); // Menghapus '/api' (4 karakter)
+      } else if (domain.endsWith('/api/')) {
+        domain = domain.substring(0, domain.length - 5); // Menghapus '/api/' (5 karakter)
+      }
+      
+      // Pastikan domain tidak diakhiri tanda '/' setelah dipotong
+      if (domain.endsWith('/')) {
+        domain = domain.substring(0, domain.length - 1);
+      }
+      
+      // 4. Gabungkan domain yang sudah bersih dengan path storagenya
+      if (cleanUrl.contains('storage/')) {
+        final String pathSetelahStorage = cleanUrl.split('storage/')[1];
+        return '$domain/storage/$pathSetelahStorage';
+      }
     }
-    return url;
+    
+    // 5. FALLBACK: Jika .env tidak terbaca, pakai url bawaan tapi arahkan localhost ke IP Emulator (10.0.2.2)
+    String fallbackUrl = cleanUrl.replaceAll('localhost', '10.0.2.2');
+    fallbackUrl = fallbackUrl.replaceAll('127.0.0.1', '10.0.2.2');
+    
+    return fallbackUrl;
   }
 
   @override
@@ -430,6 +454,7 @@ class _BuktiFotoSection extends StatelessWidget {
                 final Map<String, String> ngrokHeaders = {
                   'ngrok-skip-browser-warning': 'true',
                 };
+                debugPrint('🔍 NCOBA BUKA URL FOTO: $fixedUrl');
 
                 return GestureDetector(
                   onTap: () => showDialog(
