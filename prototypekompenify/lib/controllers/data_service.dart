@@ -6,6 +6,7 @@ import '../models/pengajuan_model.dart';
 import '../models/notifikasi_model.dart';
 import '../services/auth_service.dart';
 import '../services/dosen_service.dart';
+import '../services/kaprodi_service.dart';
 import '../services/pengajuan_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'data_service1.dart';
@@ -16,6 +17,7 @@ import 'package:http/http.dart' as http;
 class DataService extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final DosenService _dosenService = DosenService();
+  final KaprodiService _kaprodiService = KaprodiService();
   final PengajuanService _pengajuanService = PengajuanService();
   final NotifikasiService _notifikasiService = NotifikasiService();
   final DataService1 _staticService = DataService1();
@@ -32,19 +34,24 @@ class DataService extends ChangeNotifier {
   bool _isLoading = false;
 
   List<AssignmentModel> _assignmentsApi = [];
+  List<AssignmentModel> _assignmentsKaprodi = [];
   List<PengajuanModel> _pengajuanMasuk = [];
   List<NotifikasiModel> _notifikasiList = [];
   List<PengajuanModel> _pengajuanMenungguVerifikasi = [];
+  List<PengajuanModel> _pengajuanMenungguVerifikasiKaprodi = [];
   int _unreadCount = 0;
 
   String? get token => _token;
   api.UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   List<AssignmentModel> get assignmentsApi => _assignmentsApi;
+  List<AssignmentModel> get assignmentsKaprodi => _assignmentsKaprodi;
   List<PengajuanModel> get pengajuanMasuk => _pengajuanMasuk;
   List<NotifikasiModel> get notifikasiList => _notifikasiList;
   List<PengajuanModel> get pengajuanMenungguVerifikasi =>
       _pengajuanMenungguVerifikasi;
+  List<PengajuanModel> get pengajuanMenungguVerifikasiKaprodi =>
+      _pengajuanMenungguVerifikasiKaprodi;
   int get unreadCount => _unreadCount;
 
   // ─── AUTH ───────────────────────────────────────────────────────────────────
@@ -77,9 +84,15 @@ class DataService extends ChangeNotifier {
     if (_currentUser == null || _token == null) return;
     final role = _currentUser!.role;
     await fetchNotifikasi();
-    if (role == api.UserRole.dosen || role == api.UserRole.kaprodi) {
+    if (role == api.UserRole.dosen) {
       await fetchAssignments();
       await fetchPengajuanMasuk();
+    }
+    if (role == api.UserRole.kaprodi) {
+      await fetchAssignments();
+      await fetchAssignmentsKaprodi();
+      await fetchPengajuanMasuk();
+      await fetchPengajuanMenungguVerifikasiKaprodi();
     }
     if (role == api.UserRole.mahasiswa) {
       await fetchAssignmentMahasiswa();
@@ -91,16 +104,19 @@ class DataService extends ChangeNotifier {
     _token = null;
     _currentUser = null;
     _assignmentsApi = [];
+    _assignmentsKaprodi = [];
     _assignmentsMahasiswa = [];
     _pengajuanMasuk = [];
     _pengajuanSaya = [];
     _notifikasiList = [];
+    _pengajuanMenungguVerifikasi = [];
+    _pengajuanMenungguVerifikasiKaprodi = [];
     _unreadCount = 0;
     _staticService.logout();
     notifyListeners();
   }
 
-  // ─── ASSIGNMENTS (DOSEN/KAPRODI) ────────────────────────────────────────────
+  // ─── ASSIGNMENTS (DOSEN) ────────────────────────────────────────────────────
 
   Future<void> fetchAssignments() async {
     if (_token == null) return;
@@ -159,6 +175,70 @@ class DataService extends ChangeNotifier {
     final result = await _dosenService.hapusAssignment(_token!, id);
     if (result['success'] == true) {
       _assignmentsApi.removeWhere((a) => a.id == id);
+      notifyListeners();
+    }
+    return result;
+  }
+
+  // ─── ASSIGNMENTS KAPRODI ────────────────────────────────────────────────────
+
+  Future<void> fetchAssignmentsKaprodi() async {
+    if (_token == null) return;
+    try {
+      _assignmentsKaprodi = await _kaprodiService.getAssignments(_token!);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Gagal fetch assignments kaprodi: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> addAssignmentKaprodiApi({
+    required String judul,
+    required String deskripsi,
+    required int jamKompen,
+    required DateTime tanggalMulai,
+    required DateTime tanggalSelesai,
+  }) async {
+    if (_token == null) return {'success': false, 'message': 'Belum login'};
+    final result = await _kaprodiService.buatAssignment(
+      _token!,
+      judul: judul,
+      deskripsi: deskripsi,
+      jamKompen: jamKompen,
+      tanggalMulai: _formatDate(tanggalMulai),
+      tanggalSelesai: _formatDate(tanggalSelesai),
+    );
+    if (result['success'] == true) await fetchAssignmentsKaprodi();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> editAssignmentKaprodiApi(
+    String id, {
+    required String judul,
+    required String deskripsi,
+    required int jamKompen,
+    required DateTime tanggalMulai,
+    required DateTime tanggalSelesai,
+  }) async {
+    if (_token == null) return {'success': false, 'message': 'Belum login'};
+    final result = await _kaprodiService.editAssignment(
+      _token!,
+      id,
+      judul: judul,
+      deskripsi: deskripsi,
+      jamKompen: jamKompen,
+      tanggalMulai: _formatDate(tanggalMulai),
+      tanggalSelesai: _formatDate(tanggalSelesai),
+    );
+    if (result['success'] == true) await fetchAssignmentsKaprodi();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> deleteAssignmentKaprodiApi(String id) async {
+    if (_token == null) return {'success': false, 'message': 'Belum login'};
+    final result = await _kaprodiService.hapusAssignment(_token!, id);
+    if (result['success'] == true) {
+      _assignmentsKaprodi.removeWhere((a) => a.id == id);
       notifyListeners();
     }
     return result;
@@ -232,8 +312,6 @@ class DataService extends ChangeNotifier {
     if (result['success'] == true) await fetchPengajuanSaya();
     return result;
   }
-
-  // Tambahkan di bawah batalkanPengajuan():
 
   Future<Map<String, dynamic>> uploadBuktiFoto(
     String pengajuanId,
@@ -334,7 +412,7 @@ class DataService extends ChangeNotifier {
     }
   }
 
-  // GET | Mengambil daftar pengajuan kompen yang menunggu verifikasi
+  // GET | Mengambil daftar pengajuan yang menunggu verifikasi (dosen)
   Future<void> fetchPengajuanMenungguVerifikasi() async {
     if (_token == null) return;
     try {
@@ -348,19 +426,41 @@ class DataService extends ChangeNotifier {
           'ngrok-skip-browser-warning': 'true',
         },
       );
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List data = responseData['data'] ?? [];
-
-        _pengajuanMenungguVerifikasi = data
-            .map((json) => PengajuanModel.fromJson(json))
-            .toList();
-
+        _pengajuanMenungguVerifikasi =
+            data.map((json) => PengajuanModel.fromJson(json)).toList();
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error fetch pengajuan menunggu verifikasi: $e');
+    }
+  }
+
+  // GET | Mengambil daftar pengajuan yang menunggu verifikasi (kaprodi)
+  Future<void> fetchPengajuanMenungguVerifikasiKaprodi() async {
+    if (_token == null) return;
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+      final response = await http.get(
+        Uri.parse('$baseUrl/kaprodi/pengajuan-kompen/menunggu-verifikasi'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final List data = responseData['data'] ?? [];
+        _pengajuanMenungguVerifikasiKaprodi =
+            data.map((json) => PengajuanModel.fromJson(json)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetch pengajuan menunggu verifikasi kaprodi: $e');
     }
   }
 
@@ -387,7 +487,9 @@ class DataService extends ChangeNotifier {
       if (res != null && res['success'] == true)
         _currentUser = api.UserModel.fromJson(res['user']);
       await fetchAssignments();
+      await fetchAssignmentsKaprodi();
       await fetchPengajuanMasuk();
+      await fetchPengajuanMenungguVerifikasiKaprodi();
       await fetchNotifikasi();
     } catch (e) {
       debugPrint('Gagal refresh kaprodi: $e');
