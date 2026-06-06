@@ -9,7 +9,9 @@ import '../services/dosen_service.dart';
 import '../services/pengajuan_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'data_service1.dart';
-import 'dart:io'; 
+import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class DataService extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -32,6 +34,7 @@ class DataService extends ChangeNotifier {
   List<AssignmentModel> _assignmentsApi = [];
   List<PengajuanModel> _pengajuanMasuk = [];
   List<NotifikasiModel> _notifikasiList = [];
+  List<PengajuanModel> _pengajuanMenungguVerifikasi = [];
   int _unreadCount = 0;
 
   String? get token => _token;
@@ -40,6 +43,8 @@ class DataService extends ChangeNotifier {
   List<AssignmentModel> get assignmentsApi => _assignmentsApi;
   List<PengajuanModel> get pengajuanMasuk => _pengajuanMasuk;
   List<NotifikasiModel> get notifikasiList => _notifikasiList;
+  List<PengajuanModel> get pengajuanMenungguVerifikasi =>
+      _pengajuanMenungguVerifikasi;
   int get unreadCount => _unreadCount;
 
   // ─── AUTH ───────────────────────────────────────────────────────────────────
@@ -230,9 +235,16 @@ class DataService extends ChangeNotifier {
 
   // Tambahkan di bawah batalkanPengajuan():
 
-  Future<Map<String, dynamic>> uploadBuktiFoto(String pengajuanId, List<File> files) async {
+  Future<Map<String, dynamic>> uploadBuktiFoto(
+    String pengajuanId,
+    List<File> files,
+  ) async {
     if (_token == null) return {'success': false, 'message': 'Belum login'};
-    final result = await _mhsService.uploadBuktiFoto(_token!, pengajuanId, files);
+    final result = await _mhsService.uploadBuktiFoto(
+      _token!,
+      pengajuanId,
+      files,
+    );
     if (result['success'] == true) await fetchPengajuanSaya();
     return result;
   }
@@ -319,6 +331,36 @@ class DataService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Gagal refresh mahasiswa: $e');
+    }
+  }
+
+  // GET | Mengambil daftar pengajuan kompen yang menunggu verifikasi
+  Future<void> fetchPengajuanMenungguVerifikasi() async {
+    if (_token == null) return;
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+      final response = await http.get(
+        Uri.parse('$baseUrl/dosen/pengajuan-kompen/menunggu-verifikasi'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final List data = responseData['data'] ?? [];
+
+        _pengajuanMenungguVerifikasi = data
+            .map((json) => PengajuanModel.fromJson(json))
+            .toList();
+
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetch pengajuan menunggu verifikasi: $e');
     }
   }
 
