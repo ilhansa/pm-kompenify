@@ -9,6 +9,7 @@ import '../services/dosen_service.dart';
 import '../services/pengajuan_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'data_service1.dart';
+import 'dart:io'; 
 
 class DataService extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -223,6 +224,22 @@ class DataService extends ChangeNotifier {
   Future<Map<String, dynamic>> batalkanPengajuan(String id) async {
     if (_token == null) return {'success': false, 'message': 'Belum login'};
     final result = await _mhsService.batalkanPengajuan(_token!, id);
+    if (result['success'] == true) await fetchPengajuanSaya();
+    return result;
+  }
+
+  // Tambahkan di bawah batalkanPengajuan():
+
+  Future<Map<String, dynamic>> uploadBuktiFoto(String pengajuanId, List<File> files) async {
+    if (_token == null) return {'success': false, 'message': 'Belum login'};
+    final result = await _mhsService.uploadBuktiFoto(_token!, pengajuanId, files);
+    if (result['success'] == true) await fetchPengajuanSaya();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> tandaiSelesai(String pengajuanId) async {
+    if (_token == null) return {'success': false, 'message': 'Belum login'};
+    final result = await _mhsService.tandaiSelesai(_token!, pengajuanId);
     if (result['success'] == true) await fetchPengajuanSaya();
     return result;
   }

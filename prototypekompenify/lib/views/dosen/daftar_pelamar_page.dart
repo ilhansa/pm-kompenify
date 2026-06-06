@@ -1,7 +1,3 @@
-// lib/views/dosen/daftar_pelamar_page.dart
-// Halaman daftar mahasiswa yang mengajukan kompen untuk 1 assignment tertentu
-// Dipanggil dari halaman daftar assignment dosen dengan passing AssignmentModel
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -31,42 +27,32 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
   }
 
   Future<void> _fetchPelamars() async {
-  setState(() { _isLoading = true; _error = null; });
-  try {
-    final token = context.read<DataService>().token!;
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
-    final url = '$baseUrl/dosen/assignments/${widget.assignment.id}/pengajuan-kompen';
-    
-    debugPrint('🔍 URL: $url');
-    debugPrint('🔑 Token: $token');
-
-    final res = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    debugPrint('📦 Status: ${res.statusCode}');
-    debugPrint('📦 Body: ${res.body}');
-
-    final body = jsonDecode(res.body);
-    if (res.statusCode == 200 && body['success'] == true) {
-      setState(() {
-        _pelamars = (body['data'] as List)
-            .map((e) => PengajuanModel.fromJson(e))
-            .toList();
-        _isLoading = false;
-      });
-    } else {
-      setState(() { _error = body['message'] ?? 'Gagal memuat data'; _isLoading = false; });
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final token = context.read<DataService>().token!;
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+      final res = await http.get(
+        Uri.parse('$baseUrl/dosen/assignments/${widget.assignment.id}/pengajuan-kompen'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      final body = jsonDecode(res.body);
+      if (res.statusCode == 200 && body['success'] == true) {
+        setState(() {
+          _pelamars = (body['data'] as List)
+              .map((e) => PengajuanModel.fromJson(e))
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() { _error = body['message'] ?? 'Gagal memuat data'; _isLoading = false; });
+      }
+    } catch (e) {
+      setState(() { _error = 'Gagal terhubung ke server: $e'; _isLoading = false; });
     }
-  } catch (e) {
-    debugPrint('❌ Error: $e');
-    setState(() { _error = 'Gagal terhubung ke server: $e'; _isLoading = false; });
   }
-}
 
   Future<void> _updateStatus(PengajuanModel p, String status) async {
     final confirm = await showDialog<bool>(
@@ -134,17 +120,14 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Daftar Pelamar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Daftar Pelamar',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _fetchPelamars,
-          ),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _fetchPelamars),
         ],
       ),
       body: Column(
         children: [
-          // ── Header Info Assignment ──────────────────────────────
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -154,16 +137,17 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
               children: [
                 const Divider(height: 1),
                 const SizedBox(height: 12),
-                Text(
-                  asg.judul,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-                ),
+                Text(asg.judul,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _infoChip(Icons.schedule_rounded, '${asg.jamKompen} jam kompen', const Color(0xFF6C63FF)),
+                    _infoChip(Icons.schedule_rounded, '${asg.jamKompen} jam kompen',
+                        const Color(0xFF6C63FF)),
                     const SizedBox(width: 8),
-                    _infoChip(Icons.people_rounded, '$pendingCount menunggu', const Color(0xFFFFB020)),
+                    _infoChip(Icons.people_rounded, '$pendingCount menunggu',
+                        const Color(0xFFFFB020)),
                     const SizedBox(width: 8),
                     _statusBadge(asg.status),
                   ],
@@ -171,8 +155,6 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
               ],
             ),
           ),
-
-          // ── Body List ───────────────────────────────────────────
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -210,7 +192,8 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
           children: [
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
           ],
         ),
       );
@@ -231,7 +214,8 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
           children: [
             Icon(Icons.inbox_rounded, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('Belum ada pelamar', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+            Text('Belum ada pelamar',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
             const SizedBox(height: 4),
             Text('Mahasiswa belum ada yang mengajukan kompen ini',
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
@@ -257,7 +241,7 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
       );
 }
 
-// ── Card pelamar ────────────────────────────────────────────────────────────────
+// ── Card pelamar ───────────────────────────────────────────────────────────────
 
 class _PelamarCard extends StatelessWidget {
   final PengajuanModel pengajuan;
@@ -274,7 +258,7 @@ class _PelamarCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = pengajuan.status == 'pending';
     final nama = pengajuan.mahasiswaNama ?? '-';
-    final nim  = pengajuan.mahasiswaNim  ?? '-';
+    final nim = pengajuan.mahasiswaNim ?? '-';
     final inisial = nama != '-' && nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
     return Container(
@@ -282,31 +266,38 @@ class _PelamarCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Avatar
             CircleAvatar(
               radius: 24,
               backgroundColor: const Color(0xFF6C63FF).withOpacity(0.12),
-              child: Text(inisial, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6C63FF))),
+              child: Text(inisial,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6C63FF))),
             ),
             const SizedBox(width: 12),
-
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nama, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E))),
+                  Text(nama,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Color(0xFF1A1A2E))),
                   const SizedBox(height: 2),
                   Text(nim, style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
                   const SizedBox(height: 6),
-                  // Status badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -315,14 +306,15 @@ class _PelamarCard extends StatelessWidget {
                     ),
                     child: Text(
                       pengajuan.statusLabel,
-                      style: TextStyle(fontSize: 12, color: pengajuan.statusColor, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: pengajuan.statusColor,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Tombol aksi — hanya muncul kalau masih pending
             if (isPending) ...[
               const SizedBox(width: 8),
               Column(
@@ -356,7 +348,11 @@ class _ActionBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ActionBtn({required this.icon, required this.color, required this.label, required this.onTap});
+  const _ActionBtn(
+      {required this.icon,
+      required this.color,
+      required this.label,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -373,7 +369,9 @@ class _ActionBtn extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12, color: color, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
