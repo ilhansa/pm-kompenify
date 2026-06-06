@@ -39,8 +39,8 @@ class PengajuanKompenController extends Controller
 
         // 3. cek duplikasi
         $sudahPernahDaftar = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
-                                            ->where('assignment_id', $request->assignment_id)
-                                            ->exists();
+            ->where('assignment_id', $request->assignment_id)
+            ->exists();
 
         if ($sudahPernahDaftar) {
             return response()->json([
@@ -53,14 +53,14 @@ class PengajuanKompenController extends Controller
             // 4. SIMPAN KE DATABASE JIKA LOLOS
             $pengajuan = PengajuanKompen::create([
                 'id' => Str::uuid()->toString(),
-                'mahasiswa_id' => $mahasiswa->id, 
+                'mahasiswa_id' => $mahasiswa->id,
                 'assignment_id' => $request->assignment_id,
                 'status' => 'pending',
             ]);
 
             // 5. KIRIM NOTIFIKASI KE DOSEN PEMILIK TUGAS
             $assignment = \App\Models\Assignment::find($request->assignment_id);
-            
+
             if ($assignment) {
                 \App\Models\Notifikasi::create([
                     'id'      => Str::uuid()->toString(),
@@ -75,7 +75,6 @@ class PengajuanKompenController extends Controller
                 'message' => 'Pengajuan kompen berhasil dikirim',
                 'data' => $pengajuan
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -111,16 +110,15 @@ class PengajuanKompenController extends Controller
         try {
             // 3. Ambil semua pengajuan milik mahasiswa ini beserta tugas dan buktinya
             $riwayatPengajuan = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
-                                               ->with(['assignment', 'bukti'])
-                                               ->orderBy('created_at', 'desc')
-                                               ->get();
+                ->with(['assignment', 'bukti'])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Berhasil mengambil riwayat pengajuan kompen',
                 'data' => $riwayatPengajuan
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -160,7 +158,7 @@ class PengajuanKompenController extends Controller
         // Cek apakah pengajuan ini benar-benar milik mahasiswa yang sedang login
         if ($pengajuan->mahasiswa_id !== $mahasiswa->id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Akses ditolak! Anda tidak bisa melihat pengajuan mahasiswa lain.'
             ], 403);
         }
@@ -196,7 +194,7 @@ class PengajuanKompenController extends Controller
         // 3. CEK KEPEMILIKAN (Cuma boleh batalin pengajuan sendiri)
         if ($pengajuan->mahasiswa_id !== $mahasiswa->id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Akses ditolak! Anda tidak berhak membatalkan pengajuan orang lain.'
             ], 403);
         }
@@ -204,7 +202,7 @@ class PengajuanKompenController extends Controller
         // 4. CEK STATUS (Cuma boleh dibatalkan kalau masih pending)
         if ($pengajuan->status !== 'pending') {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Pengajuan gagal dibatalkan karena sudah diproses dosen (Status saat ini: $pengajuan->status)."
             ], 403);
         }
@@ -217,7 +215,6 @@ class PengajuanKompenController extends Controller
                 'success' => true,
                 'message' => 'Pengajuan kompen berhasil dibatalkan!'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -240,7 +237,7 @@ class PengajuanKompenController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -251,17 +248,16 @@ class PengajuanKompenController extends Controller
 
             // 3. CARI PENGAJUAN YANG MASUK KE TUGAS-TUGAS TERSEBUT (KHUSUS PENDING)
             $pengajuans = PengajuanKompen::whereIn('assignment_id', $assignmentIds)
-                                         ->where('status', 'pending')
-                                         ->with(['mahasiswa', 'assignment'])
-                                         ->orderBy('created_at', 'desc')
-                                         ->get();
+                ->where('status', 'pending')
+                ->with(['mahasiswa', 'assignment'])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Berhasil mengambil daftar pelamar baru',
                 'data'    => $pengajuans
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -284,7 +280,7 @@ class PengajuanKompenController extends Controller
 
         if ($userRole !== $jalurMasuk) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => "Nyasar Bos! Anda login sebagai $userRole, dilarang mengakses jalur $jalurMasuk."
             ], 403);
         }
@@ -299,7 +295,7 @@ class PengajuanKompenController extends Controller
         // 3. Satpam Kepemilikan Tugas
         if ($assignment->dosen_id !== $user->id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Akses ditolak! Anda tidak bisa melihat pengajuan di tugas milik dosen lain.'
             ], 403);
         }
@@ -307,16 +303,15 @@ class PengajuanKompenController extends Controller
         try {
             // 4. Ambil semua pengajuan KHUSUS untuk assignment_id ini saja
             $pengajuans = PengajuanKompen::where('assignment_id', $assignment_id)
-                                      ->with(['mahasiswa', 'bukti'])
-                                      ->orderBy('created_at', 'desc')
-                                      ->get();
+                ->with(['mahasiswa', 'bukti'])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Berhasil mengambil daftar pengajuan kompen untuk tugas ini',
                 'data'    => $pengajuans
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -330,7 +325,7 @@ class PengajuanKompenController extends Controller
     {
         $user = $request->user();
         $userRole = $user->role;
-        $jalurMasuk = $request->segment(2); 
+        $jalurMasuk = $request->segment(2);
 
         if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
             return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
@@ -377,11 +372,11 @@ class PengajuanKompenController extends Controller
             if ($request->status === 'diterima') {
                 // Cari mahasiswa lain yang berstatus pending
                 $pengajuanLain = PengajuanKompen::where('assignment_id', $pengajuan->assignment_id)
-                               ->where('id', '!=', $pengajuan->id)
-                               ->where('status', 'pending')
-                               ->with('mahasiswa')
-                               ->get();
-                
+                    ->where('id', '!=', $pengajuan->id)
+                    ->where('status', 'pending')
+                    ->with('mahasiswa')
+                    ->get();
+
                 foreach ($pengajuanLain as $pLain) {
                     $pLain->update(['status' => 'ditolak']);
 
@@ -393,9 +388,9 @@ class PengajuanKompenController extends Controller
                         'pesan'   => "Tugas '{$pengajuan->assignment->judul}' sudah ditugaskan ke mahasiswa lain. Yuk cari tugas lain!",
                     ]);
                 }
-                
+
                 $pengajuan->assignment->update([
-                    'status' => 'sedang dikerjakan' 
+                    'status' => 'sedang dikerjakan'
                 ]);
             }
 
@@ -404,7 +399,6 @@ class PengajuanKompenController extends Controller
                 'message' => 'Status pengajuan berhasil diubah menjadi ' . $request->status,
                 'data'    => $pengajuan
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -412,7 +406,7 @@ class PengajuanKompenController extends Controller
             ], 500);
         }
     }
-    
+
     // PUT: TANDAI TUGAS SELESAI OLEH MAHASISWA
     public function tandaiSelesai(Request $request, $id)
     {
@@ -432,7 +426,7 @@ class PengajuanKompenController extends Controller
         // 2. Satpam Keamanan: Cek apakah ini benar-benar tugas miliknya
         $mahasiswa = \App\Models\Mahasiswa::where('user_id', $user->id)->first();
         if ($pengajuan->mahasiswa_id !== $mahasiswa->id) {
-             return response()->json(['success' => false, 'message' => 'Bukan tugasmu, Bos!'], 403);
+            return response()->json(['success' => false, 'message' => 'Bukan tugasmu, Bos!'], 403);
         }
 
         // 3. Update statusnya
@@ -448,11 +442,47 @@ class PengajuanKompenController extends Controller
                 'message' => 'Tugas berhasil disubmit! Menunggu penilaian dari Dosen.',
                 'data' => $pengajuan
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengubah status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ==========================================
+    // GET: DAFTAR TUGAS MENUNGGU VERIFIKASI (KHUSUS DOSEN)
+    // ==========================================
+    public function indexMenungguVerifikasi(Request $request)
+    {
+        $user = $request->user();
+
+        // Pastikan yang akses beneran dosen
+        // Ganti pengecekan role lama dengan ini:
+        if (!in_array($user->role, ['dosen', 'kaprodi'])) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        }
+
+        try {
+            // Ambil pengajuan dengan status 'selesai' milik dosen yang sedang login
+            $pengajuan = PengajuanKompen::with(['assignment', 'bukti'])
+                // Filter 1: Statusnya harus 'menunggu_verifikasi'
+                ->where('status', 'menunggu_verifikasi')
+                // Filter 2: Assignment-nya harus milik dosen ini
+                ->whereHas('assignment', function ($query) use ($user) {
+                    $query->where('dosen_id', $user->id);
+                })
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil mengambil data tugas yang menunggu verifikasi',
+                'data' => $pengajuan
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data: ' . $e->getMessage()
             ], 500);
         }
     }

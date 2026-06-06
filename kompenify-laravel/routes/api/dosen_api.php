@@ -29,4 +29,6 @@ Route::prefix('dosen')->group(function () {
 
     // 7. menerima/menolak pengajuan
     Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
+    // GET | Lihat daftar tugas yang menunggu ACC/TTD
+    Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
 });
