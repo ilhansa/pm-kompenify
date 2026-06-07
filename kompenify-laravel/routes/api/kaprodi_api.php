@@ -5,28 +5,28 @@ use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\PengajuanKompenController;
 
 Route::prefix('kaprodi')->group(function () {
-    
-    // Rute CRUD Assignment
-    
-    // view
-    // get all
-    Route::get('/assignments', [AssignmentController::class, 'index']);
-    // get details
-    Route::get('/assignments/{id}', [AssignmentController::class, 'show']);
-    // create
+
+    // 1. Kaprodi membuat assignment baru
     Route::post('/assignments', [AssignmentController::class, 'store']);
-    // update
+
+    // 2. Kaprodi melihat list assignment buatan mereka
+    Route::get('/assignments', [AssignmentController::class, 'index']);
+
+    // 3. Kaprodi melihat detail satu assignment
+    Route::get('/assignments/{id}', [AssignmentController::class, 'show']);
+
+    // 4. Kaprodi mengedit assignment
     Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
-    // delete
+
+    // 5. Kaprodi menghapus assignment
     Route::delete('/assignments/{id}', [AssignmentController::class, 'destroy']);
-    // melihat daftar pengajuan kompen (get all)
-    Route::get('/pengajuan-kompen', [PengajuanKompenController::class, 'indexPemberiKompen']);
-    // Melihat daftar pengajuan kompen di 1 tugas spesifik (get details)
-    Route::get('/assignments/{assignment_id}/pengajuan-kompen', [PengajuanKompenController::class, 'pengajuanKompenByAssignment']);
-    // menerima/menolak pengajuan
-    Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
-    // GET | Lihat daftar tugas yang menunggu ACC/TTD
+
+    // 6. Ambil antrean tugas kompen rilisannya Kaprodi yang butuh dicek statusnya
     Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
-    // kasih ttd
-    Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']); 
+
+    // 7. Aksi Mengubah Status (Kaprodi milih mhs pas war slot ATAU ACC hasil kerjaan tugas buatannya sendiri)l
+    Route::post('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
+
+    // 8. Eksekusi pengesahan final kompen untuk menerbitkan QR Token Kaprodi (Mengubah status final ke 'diterima')
+    Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
 });

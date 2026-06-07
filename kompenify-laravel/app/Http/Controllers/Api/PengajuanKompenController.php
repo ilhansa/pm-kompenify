@@ -320,90 +320,136 @@ class PengajuanKompenController extends Controller
         }
     }
 
-    // UPDATE: STATUS TERIMA ATAU TOLAK PENGAJUAN (KHUSUS DOSEN/KAPRODI)
+    // FUNGSI 1: MURNI WORKFLOW STATUS VERIFIKASI (DOSEN)
     public function updateStatus(Request $request, $id)
     {
         $user = $request->user();
         $userRole = $user->role;
-        $jalurMasuk = $request->segment(2);
+        $jalurMasuk = $request->segment(2); // Memastikan rute /api/dosen/
 
-        if ($userRole !== 'dosen' && $userRole !== 'kaprodi') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
-        }
-
-        if ($userRole !== $jalurMasuk) {
-            return response()->json(['success' => false, 'message' => "Nyasar Bos!"], 403);
+        if ($userRole !== 'dosen' || $jalurMasuk !== 'dosen') {
+            return response()->json(['success' => false, 'message' => 'Akses khusus Dosen!'], 403);
         }
 
         $request->validate([
-            'status' => 'required|in:diterima,ditolak'
+            'status' => 'required|in:diterima,ditolak' // Kembali ke khittah: hanya terima/tolak
         ]);
 
-        // Bawa relasi assignment DAN mahasiswa sekaligus biar gampang ambil user_id
         $pengajuan = PengajuanKompen::with(['assignment', 'mahasiswa'])->find($id);
 
         if (!$pengajuan) {
-            return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan!'], 404);
         }
 
         if ($pengajuan->assignment->dosen_id !== $user->id) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak! Bukan tugas Anda.'], 403);
         }
 
-        if ($pengajuan->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => "Pengajuan sudah diproses."], 400);
-        }
-
         try {
-            // 1. Eksekusi ubah status
-            $pengajuan->update([
-                'status' => $request->status
-            ]);
+            // ─── 🛠️ FASE A: DOSEN PILIH MAHASISWA PAS WAR (pending -> sedang dikerjakan) ───
+            if ($request->status === 'diterima' && $pengajuan->status === 'pending') {
 
-            // 2. KIRIM NOTIFIKASI KE MAHASISWA YANG DIPROSES
-            Notifikasi::create([
-                'id'      => Str::uuid()->toString(),
-                'user_id' => $pengajuan->mahasiswa->user_id,
-                'judul'   => $request->status === 'diterima' ? '🎉 Pengajuan Diterima!' : '❌ Pengajuan Ditolak',
-                'pesan'   => "Pengajuan kompen Anda untuk tugas '{$pengajuan->assignment->judul}' telah " . $request->status . ".",
-            ]);
+                $pengajuan->update(['status' => 'sedang dikerjakan']);
 
-            // 3. AUTO-REJECT & NOTIF PATAH HATI BUAT MAHASISWA LAIN
-            if ($request->status === 'diterima') {
-                // Cari mahasiswa lain yang berstatus pending
+                // Auto-reject mahasiswa lain yang ikut rebutan slot war
                 $pengajuanLain = PengajuanKompen::where('assignment_id', $pengajuan->assignment_id)
                     ->where('id', '!=', $pengajuan->id)
                     ->where('status', 'pending')
-                    ->with('mahasiswa')
                     ->get();
 
                 foreach ($pengajuanLain as $pLain) {
                     $pLain->update(['status' => 'ditolak']);
-
-                    // Kirim notifikasi ke mereka
-                    Notifikasi::create([
-                        'id'      => Str::uuid()->toString(),
-                        'user_id' => $pLain->mahasiswa->user_id,
-                        'judul'   => 'Maaf, Kuota Tugas Penuh',
-                        'pesan'   => "Tugas '{$pengajuan->assignment->judul}' sudah ditugaskan ke mahasiswa lain. Yuk cari tugas lain!",
-                    ]);
                 }
 
-                $pengajuan->assignment->update([
-                    'status' => 'sedang dikerjakan'
-                ]);
+                // Update status tugas utama di tabel assignments
+                $pengajuan->assignment->update(['status' => 'sedang dikerjakan']);
+
+                return response()->json(['success' => true, 'message' => 'Mahasiswa resmi mulai bekerja!']);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Status pengajuan berhasil diubah menjadi ' . $request->status,
-                'data'    => $pengajuan
-            ], 200);
+            // ─── 🛠️ FASE B: DOSEN ACC HASIL KERJAAN (menunggu_ttd_dosen -> menunggu_ttd_kaprodi) ───
+            if ($request->status === 'diterima' && $pengajuan->status === 'menunggu_ttd_dosen') {
+
+                // Murni oper status ke meja Kaprodi, BELUM mengisi token E-TTD Dosen!
+                $pengajuan->update(['status' => 'menunggu_ttd_kaprodi']);
+
+                return response()->json(['success' => true, 'message' => 'Hasil kerja VALID, berkas dikirim ke antrean TTD!']);
+            }
+
+            // ─── 🛠️ FASE C: DOSEN TOLAK HASIL KERJAAN (menunggu_ttd_dosen -> sedang dikerjakan) ───
+            if ($request->status === 'ditolak' && $pengajuan->status === 'menunggu_ttd_dosen') {
+
+                // Kembalikan ke 'sedang dikerjakan' agar mahasiswa bisa revisi dan upload ulang bukti
+                $pengajuan->update(['status' => 'sedang dikerjakan']);
+
+                return response()->json(['success' => true, 'message' => 'Hasil kerja ditolak, mahasiswa diminta revisi.']);
+            }
+
+            return response()->json(['success' => false, 'message' => 'Transisi status tidak valid dengan fase saat ini!'], 400);
+
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memproses: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // FUNGSI 2: KHUSUS PENERBITAN KODE QR E-TTD DIGITAL (DOSEN & KAPRODI)
+    public function berikanTandaTangan(Request $request, $id)
+    {
+        $user = $request->user();
+        $userRole = $user->role;
+
+        $pengajuan = PengajuanKompen::find($id);
+
+        if (!$pengajuan) {
+            return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+        }
+
+        if ($pengajuan->status !== 'menunggu_ttd_kaprodi') {
+            return response()->json(['success' => false, 'message' => 'Berkas belum masuk fase penandatanganan sah!'], 400);
+        }
+
+        try {
+            // 1. JALUR BUBURKAN TTD DOSEN
+            if ($userRole === 'dosen') {
+                if ($pengajuan->assignment->dosen_id !== $user->id) {
+                    return response()->json(['success' => false, 'message' => 'Akses ditolak! Bukan tugas Anda.'], 403);
+                }
+
+                if (!is_null($pengajuan->qr_token_dosen)) {
+                    return response()->json(['success' => false, 'message' => 'Anda sudah menandatangani dokumen ini!'], 400);
+                }
+
+                // Sematkan token unik berstempel waktu untuk Dosen
+                $pengajuan->update([
+                    'qr_token_dosen' => 'E-KOMPEN-DSN-' . strtoupper(Str::random(10)) . '-' . time()
+                ]);
+
+                return response()->json(['success' => true, 'message' => '✓ Sukses menyematkan E-TTD Dosen!']);
+            }
+
+            // 2. JALUR SAHKAN TTD KAPRODI (FINALISASI)
+            if ($userRole === 'kaprodi') {
+                if (is_null($pengajuan->qr_token_dosen)) {
+                    return response()->json(['success' => false, 'message' => 'Gagal! Dosen yang bersangkutan belum menandatangani berkas ini.'], 400);
+                }
+
+                if (!is_null($pengajuan->qr_token_kaprodi)) {
+                    return response()->json(['success' => false, 'message' => 'Kaprodi sudah menyetujui dokumen ini!'], 400);
+                }
+
+                // Kaprodi ttd, otomatis status enum berubah jadi 'diterima' (Lunas Mutlak!)
+                $pengajuan->update([
+                    'status' => 'diterima',
+                    'qr_token_kaprodi' => 'E-KOMPEN-KPR-' . strtoupper(Str::random(10)) . '-' . time()
+                ]);
+
+                return response()->json(['success' => true, 'message' => '✓ Kompen resmi SAH & LUNAS TOTAL di tingkat program studi!']);
+            }
+
+            return response()->json(['success' => false, 'message' => 'Role Anda tidak memiliki otoritas E-TTD!'], 403);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -434,7 +480,7 @@ class PengajuanKompenController extends Controller
         // Biasanya kalau mahasiswa yang submit, statusnya berubah jadi 'menunggu_verifikasi' atau 'selesai'
         try {
             $pengajuan->update([
-                'status' => 'menunggu_verifikasi'
+                'status' => 'menunggu_ttd_dosen'
             ]);
 
             return response()->json([
@@ -454,64 +500,19 @@ class PengajuanKompenController extends Controller
     public function indexMenungguVerifikasi(Request $request)
     {
         $user = $request->user();
+        $query = PengajuanKompen::with(['assignment', 'bukti', 'mahasiswa.user']);
 
-        try {
-            $query = PengajuanKompen::with(['assignment', 'bukti', 'mahasiswa.user']);
-
-            // Jika yang login DOSEN biasa
-            if ($user->role === 'dosen') {
-                $query->whereIn('status', ['pending', 'menunggu_ttd_dosen'])
-                    ->whereHas('assignment', function ($q) use ($user) {
-                        $q->where('dosen_id', $user->id);
-                    });
-            }
-            // Jika yang login KAPRODI
-            else if ($user->role === 'kaprodi') {
-                $query->where('status', 'menunggu_ttd_kaprodi');
-            } else {
-                return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
-            }
-
-            $pengajuan = $query->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $pengajuan
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        if ($user->role === 'dosen') {
+            // 🚀 SEKARANG DOSEN NARIK STATUS: pending ATAU menunggu_ttd_dosen!
+            $query->whereIn('status', ['pending', 'menunggu_ttd_dosen'])
+                ->whereHas('assignment', function ($q) use ($user) {
+                    $q->where('dosen_id', $user->id);
+                });
+        } else if ($user->role === 'kaprodi') {
+            // Kaprodi narik status yang mengantre giliran meja dia
+            $query->where('status', 'menunggu_ttd_kaprodi');
         }
+
+        return response()->json(['success' => true, 'data' => $query->get()], 200);
     }
-
-    public function berikanTandaTangan(Request $request, $id)
-{
-    $user = $request->user();
-    $pengajuan = PengajuanKompen::findOrFail($id);
-    
-    // Generate string token unik untuk penanda keabsahan QR di PDF nanti
-    $token = 'E-KOMPEN-' . strtoupper(Str::random(10)) . '-' . time();
-
-    if ($user->role === 'dosen') {
-        $pengajuan->qr_token_dosen = $token;
-        $pengajuan->save();
-        return response()->json([
-            'success' => true, 
-            'message' => 'E-TTD Dosen Berhasil disematkan!'
-        ]);
-    }
-
-    if ($user->role === 'kaprodi') {
-        $pengajuan->qr_token_kaprodi = $token;
-        $pengajuan->save();
-        return response()->json([
-            'success' => true, 
-            'message' => 'E-TTD Kaprodi Berhasil disematkan!'
-        ]);
-    }
-
-    return response()->json([
-        'success' => false, 
-        'message' => 'Role Anda tidak memiliki akses TTD.'
-    ], 403);
-}
 }

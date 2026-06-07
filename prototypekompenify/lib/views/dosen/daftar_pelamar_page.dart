@@ -27,12 +27,17 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
   }
 
   Future<void> _fetchPelamars() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final token = context.read<DataService>().token!;
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
       final res = await http.get(
-        Uri.parse('$baseUrl/dosen/assignments/${widget.assignment.id}/pengajuan-kompen'),
+        Uri.parse(
+          '$baseUrl/dosen/assignments/${widget.assignment.id}/pengajuan-kompen',
+        ),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -47,10 +52,16 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
           _isLoading = false;
         });
       } else {
-        setState(() { _error = body['message'] ?? 'Gagal memuat data'; _isLoading = false; });
+        setState(() {
+          _error = body['message'] ?? 'Gagal memuat data';
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      setState(() { _error = 'Gagal terhubung ke server: $e'; _isLoading = false; });
+      setState(() {
+        _error = 'Gagal terhubung ke server: $e';
+        _isLoading = false;
+      });
     }
   }
 
@@ -69,10 +80,15 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
               : 'Pengajuan ${p.mahasiswaNama ?? p.mahasiswaNim ?? '-'} akan ditolak.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: status == 'diterima' ? const Color(0xFF4CAF8D) : const Color(0xFFE74C6B),
+              backgroundColor: status == 'diterima'
+                  ? const Color(0xFF4CAF8D)
+                  : const Color(0xFFE74C6B),
             ),
             onPressed: () => Navigator.pop(context, true),
             child: Text(status == 'diterima' ? 'Terima' : 'Tolak'),
@@ -83,11 +99,18 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
     if (confirm != true) return;
 
     try {
-      final result = await context.read<DataService>().updateStatusPengajuan(p.id, status);
+      final result = await context.read<DataService>().updateStatusPengajuan(
+        p.id,
+        status,
+      );
       if (result['success'] == true) {
         _showSnackbar(
-          status == 'diterima' ? 'Pengajuan berhasil diterima!' : 'Pengajuan berhasil ditolak.',
-          status == 'diterima' ? const Color(0xFF4CAF8D) : const Color(0xFFE74C6B),
+          status == 'diterima'
+              ? 'Pengajuan berhasil diterima!'
+              : 'Pengajuan berhasil ditolak.',
+          status == 'diterima'
+              ? const Color(0xFF4CAF8D)
+              : const Color(0xFFE74C6B),
         );
         await _fetchPelamars();
       } else {
@@ -120,10 +143,15 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Daftar Pelamar',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text(
+          'Daftar Pelamar',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _fetchPelamars),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _fetchPelamars,
+          ),
         ],
       ),
       body: Column(
@@ -137,17 +165,28 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
               children: [
                 const Divider(height: 1),
                 const SizedBox(height: 12),
-                Text(asg.judul,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                Text(
+                  asg.judul,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _infoChip(Icons.schedule_rounded, '${asg.jamKompen} jam kompen',
-                        const Color(0xFF6C63FF)),
+                    _infoChip(
+                      Icons.schedule_rounded,
+                      '${asg.jamKompen} jam kompen',
+                      const Color(0xFF6C63FF),
+                    ),
                     const SizedBox(width: 8),
-                    _infoChip(Icons.people_rounded, '$pendingCount menunggu',
-                        const Color(0xFFFFB020)),
+                    _infoChip(
+                      Icons.people_rounded,
+                      '$pendingCount menunggu',
+                      const Color(0xFFFFB020),
+                    ),
                     const SizedBox(width: 8),
                     _statusBadge(asg.status),
                   ],
@@ -159,22 +198,22 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _buildError()
-                    : _pelamars.isEmpty
-                        ? _buildEmpty()
-                        : RefreshIndicator(
-                            onRefresh: _fetchPelamars,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _pelamars.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
-                              itemBuilder: (_, i) => _PelamarCard(
-                                pengajuan: _pelamars[i],
-                                onTerima: () => _updateStatus(_pelamars[i], 'diterima'),
-                                onTolak: () => _updateStatus(_pelamars[i], 'ditolak'),
-                              ),
-                            ),
-                          ),
+                ? _buildError()
+                : _pelamars.isEmpty
+                ? _buildEmpty()
+                : RefreshIndicator(
+                    onRefresh: _fetchPelamars,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _pelamars.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) => _PelamarCard(
+                        pengajuan: _pelamars[i],
+                        onTerima: () => _updateStatus(_pelamars[i], 'diterima'),
+                        onTolak: () => _updateStatus(_pelamars[i], 'ditolak'),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -182,21 +221,27 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
   }
 
   Widget _infoChip(IconData icon, String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: color),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 
   Widget _statusBadge(String status) {
     final map = {
@@ -209,36 +254,40 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
   }
 
   Widget _buildEmpty() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_rounded, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Belum ada pelamar',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text('Mahasiswa belum ada yang mengajukan kompen ini',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.inbox_rounded, size: 64, color: Colors.grey.shade300),
+        const SizedBox(height: 12),
+        Text(
+          'Belum ada pelamar',
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          'Mahasiswa belum ada yang mengajukan kompen ini',
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildError() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _fetchPelamars,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Coba Lagi'),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey.shade300),
+        const SizedBox(height: 12),
+        Text(_error!, style: const TextStyle(color: Colors.red)),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _fetchPelamars,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Coba Lagi'),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 // ── Card pelamar ───────────────────────────────────────────────────────────────
@@ -259,7 +308,9 @@ class _PelamarCard extends StatelessWidget {
     final isPending = pengajuan.status == 'pending';
     final nama = pengajuan.mahasiswaNama ?? '-';
     final nim = pengajuan.mahasiswaNim ?? '-';
-    final inisial = nama != '-' && nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+    final inisial = nama != '-' && nama.isNotEmpty
+        ? nama[0].toUpperCase()
+        : '?';
 
     return Container(
       decoration: BoxDecoration(
@@ -267,9 +318,10 @@ class _PelamarCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2)),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Padding(
@@ -279,27 +331,39 @@ class _PelamarCard extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: const Color(0xFF6C63FF).withOpacity(0.12),
-              child: Text(inisial,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6C63FF))),
+              child: Text(
+                inisial,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6C63FF),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nama,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Color(0xFF1A1A2E))),
+                  Text(
+                    nama,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(nim, style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                  Text(
+                    nim,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: pengajuan.statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -307,9 +371,10 @@ class _PelamarCard extends StatelessWidget {
                     child: Text(
                       pengajuan.statusLabel,
                       style: TextStyle(
-                          fontSize: 12,
-                          color: pengajuan.statusColor,
-                          fontWeight: FontWeight.w600),
+                        fontSize: 12,
+                        color: pengajuan.statusColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -348,32 +413,38 @@ class _ActionBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ActionBtn(
-      {required this.icon,
-      required this.color,
-      required this.label,
-      required this.onTap});
+  const _ActionBtn({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.3)),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }

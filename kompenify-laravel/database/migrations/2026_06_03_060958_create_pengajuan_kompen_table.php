@@ -9,26 +9,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('pengajuan_kompen', function (Blueprint $table) {
-            // Menggunakan UUID sebagai Primary Key bawaan tim kalian
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary(); // UUID bawaan kelompok lu
 
-            // FK MAHASISWA (Relasi ke tabel mahasiswas)
+            // Foreign Key Mahasiswa
             $table->foreignId('mahasiswa_id')
                 ->constrained('mahasiswas')
                 ->cascadeOnDelete();
 
-            // FK ASSIGNMENT (Relasi UUID ke tabel assignments)
+            // Foreign Key Assignment
             $table->uuid('assignment_id');
             $table->foreign('assignment_id')
                 ->references('id')
                 ->on('assignments')
                 ->cascadeOnDelete();
 
-            // ✅ STATUS UTAMA: Tetap pakai alur aman bawaan awal backend (pending / diterima / ditolak)
-            $table->string('status')->default('pending');
+            // 🚀 KUNCI ENUM DI SINI: Hanya 6 status ini yang boleh masuk database!
+            $table->enum('status', [
+                'pending',
+                'sedang dikerjakan',
+                'menunggu_ttd_dosen',
+                'menunggu_ttd_kaprodi',
+                'diterima',
+                'ditolak'
+            ])->default('pending'); // Pas war slot otomatis 'pending'
 
-            // 🚀 FITUR BARU: Kolom penampung kode hash/token QR unik setelah dosen/kaprodi klik TTD
-            // Statusnya nullable() karena baru terisi setelah status pengajuan di-ACC menjadi 'diterima'
+            // Kolom Token QR E-TTD Digital
             $table->string('qr_token_dosen')->nullable();
             $table->string('qr_token_kaprodi')->nullable();
 

@@ -261,20 +261,41 @@ class DataService extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> updateStatusPengajuan(
-    String pengajuanId,
-    String status,
+    dynamic id,
+    dynamic status,
   ) async {
-    if (_token == null || _currentUser == null)
-      return {'success': false, 'message': 'Belum login'};
-    final role = _currentUser!.role == api.UserRole.dosen ? 'dosen' : 'kaprodi';
-    final result = await _pengajuanService.updateStatus(
-      _token!,
-      role,
-      pengajuanId,
-      status,
-    );
-    if (result['success'] == true) await fetchPengajuanMasuk();
-    return result;
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+
+      // Konversi aman untuk ID dan Status agar masuk ke Laravel dalam format string/int yang valid
+      final targetId = id.toString();
+      final String statusString = status.toString();
+
+      final url = Uri.parse("$baseUrl/dosen/pengajuan-kompen/$targetId/status");
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': statusString}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Sukses'};
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Gagal memproses',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Eror koneksi: $e'};
+    }
   }
 
   // ─── MAHASISWA ──────────────────────────────────────────────────────────────
@@ -429,8 +450,9 @@ class DataService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List data = responseData['data'] ?? [];
-        _pengajuanMenungguVerifikasi =
-            data.map((json) => PengajuanModel.fromJson(json)).toList();
+        _pengajuanMenungguVerifikasi = data
+            .map((json) => PengajuanModel.fromJson(json))
+            .toList();
         notifyListeners();
       }
     } catch (e) {
@@ -455,8 +477,9 @@ class DataService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List data = responseData['data'] ?? [];
-        _pengajuanMenungguVerifikasiKaprodi =
-            data.map((json) => PengajuanModel.fromJson(json)).toList();
+        _pengajuanMenungguVerifikasiKaprodi = data
+            .map((json) => PengajuanModel.fromJson(json))
+            .toList();
         notifyListeners();
       }
     } catch (e) {
