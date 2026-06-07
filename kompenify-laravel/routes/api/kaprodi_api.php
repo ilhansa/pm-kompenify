@@ -29,4 +29,10 @@ Route::prefix('kaprodi')->group(function () {
 
     // 8. Eksekusi pengesahan final kompen untuk menerbitkan QR Token Kaprodi (Mengubah status final ke 'diterima')
     Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
+
+    // GET | Kaprodi melihat antrean meja dia (status 'menunggu_ttd_kaprodi')
+    Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
+
+    // PUT | Eksekusi TTD/ACC Final Kaprodi (Sah Lunas Total / Tolak)
+    Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
 });

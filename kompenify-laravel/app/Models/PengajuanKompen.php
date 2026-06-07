@@ -37,4 +37,10 @@ class PengajuanKompen extends Model
     {
         return $this->hasMany(BuktiKompen::class, 'pengajuan_id');
     }
+
+    // Relasi khusus untuk TTD terakhir Kaprodi
+    public function persetujuanKaprodi()
+    {
+        return $this->hasOne(PersetujuanKaprodi::class, 'pengajuan_id');
+    }
 }

@@ -496,23 +496,163 @@ class PengajuanKompenController extends Controller
         }
     }
 
-    // GET: DAFTAR TUGAS MENUNGGU VERIFIKASI (KHUSUS DOSEN & KAPRODI)
+    // ==========================================
+    // GET: DAFTAR TUGAS MENUNGGU VERIFIKASI (DOSEN & KAPRODI)
+    // ==========================================
     public function indexMenungguVerifikasi(Request $request)
     {
         $user = $request->user();
-        $query = PengajuanKompen::with(['assignment', 'bukti', 'mahasiswa.user']);
+        $query = PengajuanKompen::with(['assignment', 'bukti', 'mahasiswa']);
 
         if ($user->role === 'dosen') {
-            // 🚀 SEKARANG DOSEN NARIK STATUS: pending ATAU menunggu_ttd_dosen!
+            // Dosen biasa: Cuma lihat tugas bikinannya sendiri yang butuh diproses
             $query->whereIn('status', ['pending', 'menunggu_ttd_dosen'])
-                ->whereHas('assignment', function ($q) use ($user) {
-                    $q->where('dosen_id', $user->id);
-                });
+                  ->whereHas('assignment', function ($q) use ($user) {
+                      $q->where('dosen_id', $user->id);
+                  });
+                  
         } else if ($user->role === 'kaprodi') {
-            // Kaprodi narik status yang mengantre giliran meja dia
-            $query->where('status', 'menunggu_ttd_kaprodi');
+            // Kaprodi: Punya "Mata Dewa" (Bisa lihat 2 jenis antrean sekaligus)
+            $query->where(function ($q) use ($user) {
+                // Antrean 1: Tugas yang Kaprodi bikin sendiri (Bertindak sbg Dosen)
+                $q->whereIn('status', ['pending', 'menunggu_ttd_dosen'])
+                  ->whereHas('assignment', function ($q2) use ($user) {
+                      $q2->where('dosen_id', $user->id);
+                  });
+            })->orWhere(function ($q) {
+                // Antrean 2: Semua tugas se-kampus yang nunggu TTD Final (Bertindak sbg Bos Besar)
+                $q->where('status', 'menunggu_ttd_kaprodi');
+            });
+            
+        } else {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
         }
 
-        return response()->json(['success' => true, 'data' => $query->get()], 200);
+        return response()->json(['success' => true, 'data' => $query->orderBy('updated_at', 'desc')->get()], 200);
+    }
+    // ==========================================
+    // PUT: VERIFIKASI TUGAS (ALUR LENGKAP SESUAI ERD)
+    // ==========================================
+    public function verifikasi(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['dosen', 'kaprodi'])) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
+        }
+
+        $pengajuan = PengajuanKompen::with('assignment')->find($id);
+        if (!$pengajuan) {
+            return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+        }
+
+        $request->validate([
+            'status'  => 'required|in:diterima,ditolak',
+            'catatan' => 'nullable|string', 
+            // file_ttd dihapus jika murni pakai TTD Digital dari database
+        ]);
+
+        try {
+            $statusBaruPengajuan = '';
+            $pesan = '';
+            $isFinalKaprodi = false; // Penanda untuk me-load relasi di response JSON nanti
+
+            // ─── FASE 1: PERANG SLOT PELAMAR (pending -> sedang dikerjakan) ───
+            if ($pengajuan->status === 'pending') {
+                
+                // Hanya si Pembuat Tugas yang boleh milih mahasiswa
+                if ($pengajuan->assignment->dosen_id !== $user->id) {
+                    return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
+                }
+
+                if ($request->status === 'diterima') {
+                    $statusBaruPengajuan = 'sedang dikerjakan';
+                    $pesan = 'Mahasiswa resmi mulai bekerja!';
+
+                    // Auto-reject mahasiswa lain yang rebutan slot
+                    PengajuanKompen::where('assignment_id', $pengajuan->assignment_id)
+                        ->where('id', '!=', $pengajuan->id)
+                        ->where('status', 'pending')
+                        ->update(['status' => 'ditolak']);
+
+                    $pengajuan->assignment->update(['status' => 'sedang dikerjakan']);
+                } else {
+                    $statusBaruPengajuan = 'ditolak';
+                    $pesan = 'Lamaran mahasiswa ditolak.';
+                }
+            }
+            
+            // ─── FASE 2: VERIFIKASI PEMBUAT TUGAS (menunggu_ttd_dosen -> menunggu_ttd_kaprodi) ───
+            else if ($pengajuan->status === 'menunggu_ttd_dosen') {
+                
+                // Hanya si Pembuat Tugas yang boleh nge-ACC (Meskipun jabatannya Kaprodi, dia bertindak sbg Dosen di sini)
+                if ($pengajuan->assignment->dosen_id !== $user->id) {
+                    return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
+                }
+
+                if ($request->status === 'diterima') {
+                    $statusBaruPengajuan = 'menunggu_ttd_kaprodi'; 
+                    $pesan = 'Hasil kerja di-ACC oleh Pembuat Tugas! Berkas dikirim ke antrean Kaprodi.';
+                } else {
+                    $statusBaruPengajuan = 'sedang dikerjakan'; 
+                    $pesan = 'Hasil kerja ditolak, mahasiswa diminta revisi.';
+                }
+
+                // Catat ke tabel `verifikasi` sesuai ERD
+                \App\Models\VerifikasiKompen::create([
+                    'pengajuan_id' => $pengajuan->id,
+                    'user_id'      => $user->id,
+                    'status'       => $request->status, // diterima / ditolak
+                    'catatan'      => $request->catatan,
+                ]);
+            }
+
+            // ─── FASE 3: TTD FINAL KAPRODI (menunggu_ttd_kaprodi -> diterima) ───
+            else if ($pengajuan->status === 'menunggu_ttd_kaprodi') {
+                
+                // Hanya role Kaprodi asli yang bisa masuk ke sini sebagai Bos Besar
+                if ($user->role !== 'kaprodi') {
+                    return response()->json(['success' => false, 'message' => 'Hanya Kaprodi yang berhak memberikan pengesahan akhir!'], 403);
+                }
+
+                $isFinalKaprodi = true;
+
+                if ($request->status === 'diterima') {
+                    $statusBaruPengajuan = 'diterima'; // LUNAS! Memicu tabel Surat_Kompen nantinya
+                    $pesan = 'Kompen sah! Surat bebas kompen siap dicetak.';
+                } else {
+                    $statusBaruPengajuan = 'sedang dikerjakan'; // Disuruh ngulang/revisi
+                    $pesan = 'Ditolak oleh Kaprodi, mahasiswa diminta revisi.';
+                }
+
+                // Catat ke tabel `persetujuan_kaprodis` sesuai ERD
+                \App\Models\PersetujuanKaprodi::create([
+                    'pengajuan_id' => $pengajuan->id,
+                    'kaprodi_id'   => $user->id,
+                    'keputusan'    => $request->status, // diterima / ditolak
+                ]);
+            } 
+            
+            else {
+                return response()->json(['success' => false, 'message' => 'Fase pengajuan tidak valid! (Status saat ini: ' . $pengajuan->status . ')'], 400);
+            }
+
+            // ─── UPDATE STATUS ENUM UTAMA PENGAJUAN ───
+            $pengajuan->update([
+                'status' => $statusBaruPengajuan
+            ]);
+
+            // Tampilkan relasi pembuktian di Postman/Flutter sesuai fasenya
+            $relasiLoad = $isFinalKaprodi ? 'persetujuanKaprodi' : 'verifikasis';
+
+            return response()->json([
+                'success' => true,
+                'message' => $pesan,
+                'data'    => $pengajuan->load($relasiLoad)
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal memverifikasi: ' . $e->getMessage()], 500);
+        }
     }
 }

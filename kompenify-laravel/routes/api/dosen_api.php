@@ -29,4 +29,10 @@ Route::prefix('dosen')->group(function () {
     // 8. Eksekusi penerbitan QR Token E-TTD Dosen setelah berkas sah dinyatakan lolos verifikasi kerjaan
     Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
 
+    // GET | Dosen melihat antrean tugas (status 'pending' & 'menunggu_ttd_dosen')
+    Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
+
+    // PUT | Eksekusi Verifikasi Dosen (ACC War / ACC Hasil Kerja / Tolak)
+    Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
+
 });
