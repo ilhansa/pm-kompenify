@@ -125,17 +125,19 @@ class PengajuanModel {
   String get statusLabel {
     switch (status) {
       case 'pending':
-        return 'Menunggu Persetujuan';
+        return 'Pending (War Slot)';
+      case 'sedang dikerjakan':
+        return 'Sedang Dikerjakan'; // 👈 BIAR INI YANG MUNCUL GAGAH!
       case 'menunggu_ttd_dosen':
-        return 'Menunggu TTD Dosen';
+        return 'Menunggu ACC Dosen';
       case 'menunggu_ttd_kaprodi':
         return 'Menunggu TTD Kaprodi';
       case 'diterima':
-        return 'Diterima / Selesai';
+        return 'Selesai / Lunas';
       case 'ditolak':
-        return 'Ditolak';
+        return 'Ditolak / Revisi';
       default:
-        return 'Pending';
+        return status; // Kalau bingung, tampilin string aslinya dari DB
     }
   }
 }
