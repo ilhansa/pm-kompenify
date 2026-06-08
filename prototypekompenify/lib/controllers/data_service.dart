@@ -621,25 +621,19 @@ class DataService extends ChangeNotifier {
   RekapKompen getRekap(String mahasiswaId) =>
       _staticService.getRekap(mahasiswaId);
   // 🚀 TIMPA FUNGSI PALING BAWAH DI DATA_SERVICE.DART PAKAI INI SULTAN:
-  Future<Map<String, dynamic>> generateTandaTanganDigitalDosen(
-    dynamic id,
-    String tokenAktif,
-  ) async {
+  Future<Map<String, dynamic>> generateTandaTanganDigitalDosen(dynamic id, String tokenAktif) async {
     try {
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
-
-      // Menembak endpoint verifikasi ttd dosen sesuai routes/api/dosen_api.php kelompok lu
-      final url = Uri.parse(
-        "$baseUrl/dosen/pengajuan-kompen/${id.toString()}/ttd",
-      );
+      
+      // SINKRONISASI ENDPOINT: Menembak langsung parameter id sesuai route dosen_api.php[cite: 1]
+      final url = Uri.parse("$baseUrl/dosen/pengajuan-kompen/$id/ttd");
 
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization':
-              'Bearer $tokenAktif', // 👈 MURNI AMAN PAKAI PARAMETER LANGSUNG!
+          'Authorization': 'Bearer $tokenAktif',
         },
       );
 

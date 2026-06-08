@@ -1,3 +1,4 @@
+// lib/views/kaprodi/kaprodi_verifikasi.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -17,6 +18,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
   @override
   void initState() {
     super.initState();
+    // Tarik data pengajuan masuk khusus untuk role Kaprodi saat ini
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DataService>().fetchPengajuanMenungguVerifikasiKaprodi();
     });
@@ -26,12 +28,17 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
 
+    // 🚀 FILTER DOSEN (KAPRODI SEBAGAI DOSEN):
+    // Hanya menampilkan data yang statusnya 'pending' alias baru mendaftar/war slot di tugas miliknya Kaprodi
     final list = svc.pengajuanMenungguVerifikasiKaprodi
-        .where((p) => p.statusLabel == 'Menunggu Verifikasi')
+        .where((p) => p.status == 'pending')
         .toList();
 
+    // Riwayat verifikasi awal miliknya
     final history = svc.pengajuanMenungguVerifikasiKaprodi
-        .where((p) => p.statusLabel != 'Menunggu Verifikasi')
+        .where(
+          (p) => p.status != 'pending' && p.status != 'menunggu_ttd_kaprodi',
+        )
         .toList();
 
     return GradientBackground(
@@ -44,11 +51,11 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Verifikasi Kompen',
+                    'Verifikasi Kompen (Sebagai Dosen)',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    '${list.length} menunggu verifikasi',
+                    '${list.length} pengajuan tugas Anda memerlukan verifikasi',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary,
@@ -72,7 +79,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                         padding: EdgeInsets.only(top: 100),
                         child: EmptyState(
                           icon: Icons.inbox_outlined,
-                          title: 'Tidak ada yang perlu diverifikasi',
+                          title: 'Tidak ada pengajuan yang perlu diverifikasi',
                         ),
                       )
                     else
@@ -80,7 +87,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                     if (history.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Text(
-                        'Riwayat',
+                        'Riwayat Verifikasi',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -100,6 +107,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
   }
 }
 
+// ─── WIDGET CARD VERIFIKASI AWAL ───
 class _VerifikasiCard extends StatelessWidget {
   final PengajuanModel pengajuan;
   const _VerifikasiCard({required this.pengajuan});
@@ -159,87 +167,35 @@ class _VerifikasiCard extends StatelessWidget {
               locale: 'id',
             ),
           ),
-          if (p.buktiFotos.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: AppTheme.bgCard,
-                      title: const Text('Bukti Pengerjaan Kompen'),
-                      content: SizedBox(
-                        width: double.maxFinite,
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: p.buktiFotos.length,
-                          itemBuilder: (context, idx) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Image.network(
-                              p.buktiFotos[idx],
-                              fit: BoxFit.contain,
-                              headers: const {
-                                'ngrok-skip-browser-warning': 'true',
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Tutup'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.image_search_outlined,
-                  size: 18,
-                  color: AppTheme.primary,
-                ),
-                label: Text(
-                  'Lihat Bukti Foto (${p.buktiFotos.length})',
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showTolakDialog(context, p),
-                  icon: const Icon(Icons.close_rounded, size: 16, color: AppTheme.accentRed),
-                  label: const Text('Tolak', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),
+                child: OutlinedButton(
+                  onPressed: () =>
+                      _showDialogAksi(context, p, 'ditolak', 'Menolak'),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppTheme.accentRed),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: const Text(
+                    'Tolak',
+                    style: TextStyle(color: AppTheme.accentRed),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showTerimaDialog(context, p),
-                  icon: const Icon(Icons.draw_outlined, size: 16),
-                  label: const Text('Terima', style: TextStyle(fontSize: 12)),
+                child: ElevatedButton(
+                  onPressed: () => _showDialogAksi(
+                    context,
+                    p,
+                    'menunggu_ttd_dosen',
+                    'Menerima',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accentGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
+                  child: const Text('Terima & Plot TTD'),
                 ),
               ),
             ],
@@ -249,70 +205,48 @@ class _VerifikasiCard extends StatelessWidget {
     );
   }
 
-  void _showTerimaDialog(BuildContext context, PengajuanModel p) {
+  void _showDialogAksi(
+    BuildContext context,
+    PengajuanModel p,
+    String statusTarget,
+    String label,
+  ) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: const Row(
-          children: [
-            Icon(Icons.draw_outlined, color: AppTheme.accentGreen),
-            SizedBox(width: 8),
-            Text('Terima Pengajuan'),
-          ],
-        ),
+        title: Text('$label Pengajuan'),
         content: Text(
-          'Terima dan verifikasi kompen ${p.mahasiswaNama ?? "mahasiswa"} untuk "${p.assignmentJudul ?? "-"}"?\n\nMahasiswa lain yang pending akan otomatis ditolak.',
+          'Apakah Anda yakin ingin memproses pengajuan dari ${p.mahasiswaNama}?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final result = await context.read<DataService>().updateStatusPengajuan(p.id, 'diterima');
-              if (context.mounted) {
-                context.read<DataService>().fetchPengajuanMenungguVerifikasiKaprodi();
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(result['success'] == true
-                      ? '✅ Pengajuan diterima! Notifikasi dikirim ke mahasiswa.'
-                      : '❌ ${result['message']}'),
-                  backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
-                ));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
-            child: const Text('Terima'),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showTolakDialog(BuildContext context, PengajuanModel p) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.bgCard,
-        title: const Text('Tolak Pengajuan'),
-        content: const Text('Yakin ingin menolak pengajuan ini?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final result = await context.read<DataService>().updateStatusPengajuan(p.id, 'ditolak');
+              final result = await context
+                  .read<DataService>()
+                  .updateStatusPengajuan(p.id, statusTarget);
               if (context.mounted) {
-                context.read<DataService>().fetchPengajuanMenungguVerifikasiKaprodi();
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(result['success'] == true
-                      ? '❌ Pengajuan ditolak. Notifikasi dikirim ke mahasiswa.'
-                      : '❌ ${result['message']}'),
-                  backgroundColor: result['success'] == true ? AppTheme.accentOrange : AppTheme.accentRed,
-                ));
+                context
+                    .read<DataService>()
+                    .fetchPengajuanMenungguVerifikasiKaprodi();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result['success'] == true
+                          ? '✓ Sukses diproses!'
+                          : '❌ Gagal',
+                    ),
+                  ),
+                );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
-            child: const Text('Tolak'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            child: const Text('Konfirmasi'),
           ),
         ],
       ),
@@ -343,12 +277,18 @@ class _RiwayatCard extends StatelessWidget {
               children: [
                 Text(
                   p.mahasiswaNama ?? 'Mahasiswa',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   p.assignmentJudul ?? '-',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ],
             ),
