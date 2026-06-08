@@ -620,4 +620,44 @@ class DataService extends ChangeNotifier {
 
   RekapKompen getRekap(String mahasiswaId) =>
       _staticService.getRekap(mahasiswaId);
+  // 🚀 TIMPA FUNGSI PALING BAWAH DI DATA_SERVICE.DART PAKAI INI SULTAN:
+  Future<Map<String, dynamic>> generateTandaTanganDigitalDosen(
+    dynamic id,
+    String tokenAktif,
+  ) async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+
+      // Menembak endpoint verifikasi ttd dosen sesuai routes/api/dosen_api.php kelompok lu
+      final url = Uri.parse(
+        "$baseUrl/dosen/pengajuan-kompen/${id.toString()}/ttd",
+      );
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization':
+              'Bearer $tokenAktif', // 👈 MURNI AMAN PAKAI PARAMETER LANGSUNG!
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'E-TTD Dosen sukses dibubuhkan!',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Gagal memproses tanda tangan',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Eror koneksi ke server TTD: $e'};
+    }
+  }
 }

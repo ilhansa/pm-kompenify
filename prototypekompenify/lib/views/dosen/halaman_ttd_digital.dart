@@ -17,73 +17,118 @@ class _HalamanTtdDigitalState extends State<HalamanTtdDigital> {
   @override
   void initState() {
     super.initState();
-    // GET | Ambil data pengajuan terupdate saat halaman dibuka
+    // Tarik data antrean verifikasi terupdate secara realtime saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DataService>().fetchPengajuanMenungguVerifikasi();
     });
   }
 
-  void _eksekusiTandaTangan(
+  void _prosesTandaTanganDosen(
     BuildContext context,
     String id,
-    String roleLabel,
-  ) async {
-    // Menembak endpoint baru /ttd yang kalian buat di Laravel
-    final result = await context.read<DataService>().updateStatusPengajuan(
-      id,
-      'ttd',
-    );
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['success'] == true
-                ? '✓ E-TTD $roleLabel sukses disematkan! Kode QR aman ter-generate.'
-                : '❌ Gagal TTD: ${result['message']}',
-          ),
-          backgroundColor: result['success'] == true
-              ? AppTheme.accentGreen
-              : AppTheme.accentRed,
+    String mahasiswaNama,
+    String tokenAktif,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.draw_rounded, color: AppTheme.accentGreen),
+            SizedBox(width: 10),
+            Text(
+              'Sahkan Dokumen',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
         ),
-      );
+        content: Text(
+          'Apakah Anda yakin ingin membubuhkan E-TTD pada berkas kompen milik $mahasiswaNama? Tindakan ini akan dicatat ke tabel verifikasi database.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accentGreen,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
 
-      // Auto refresh list data setelah berhasil dapet TTD
-      if (result['success'] == true) {
-        context.read<DataService>().fetchPengajuanMenungguVerifikasi();
-      }
-    }
+              // ⚡ Nembak fungsi parameter aman kita di DataService
+              final result = await context
+                  .read<DataService>()
+                  .generateTandaTanganDigitalDosen(id, tokenAktif);
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result['success'] == true
+                          ? '✅ ${result['message']}'
+                          : '❌ Gagal: ${result['message']}',
+                    ),
+                    backgroundColor: result['success'] == true
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentRed,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+                // Auto refresh list data global agar kartunya hilang pindah ke meja Kaprodi
+                if (result['success'] == true) {
+                  context
+                      .read<DataService>()
+                      .fetchPengajuanMenungguVerifikasi();
+                }
+              }
+            },
+            child: const Text(
+              'Tanda Tangani',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<DataService>();
 
-    // AMBIL DATA: Yang statusnya sudah 'diterima' (lolos seleksi awal)
-    // Tapi salah satu TTD (Dosen atau Kaprodi) masih kosong melompong
-    final listAntreanTTD = svc.pengajuanMenungguVerifikasi
-        .where(
-          (p) =>
-              p.status == 'diterima' &&
-              (p.qrTokenDosen == null || p.qrTokenKaprodi == null),
-        )
+    // 🚀 FILTER VERSI SARAN ABANG: Murni menyaring berkas yang nunggu TTD Dosen
+    final antreanDosen = svc.pengajuanMenungguVerifikasi
+        .where((p) => p.status == 'menunggu_ttd_dosen')
         .toList();
 
     return GradientBackground(
       child: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Tanda Tangan Digital',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    'Meja E-Tanda Tangan Dosen',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A2E),
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
-                    '${listAntreanTTD.length} dokumen mengantre tanda tangan',
+                    '${antreanDosen.length} dokumen mahasiswa mengantre tanda tangan Anda',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary,
@@ -96,24 +141,38 @@ class _HalamanTtdDigitalState extends State<HalamanTtdDigital> {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                onRefresh: () => context.read<DataService>().refreshDataDosen(),
-                child: listAntreanTTD.isEmpty
-                    ? const Center(
-                        child: EmptyState(
-                          icon: Icons.assignment_turned_in_outlined,
-                          title: 'Tidak ada antrean E-TTD malam ini',
-                        ),
-                      )
-                    : ListView.builder(
+                onRefresh: () => context
+                    .read<DataService>()
+                    .fetchPengajuanMenungguVerifikasi(),
+                child: antreanDosen.isEmpty
+                    ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: listAntreanTTD.length,
+                        children: const [
+                          Padding(
+                            padding: EdgeInsets.only(top: 160),
+                            child: EmptyState(
+                              icon: Icons.draw_rounded,
+                              title: 'Meja TTD Bersih, Pak/Bu Dosen!',
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(20),
+                        itemCount: antreanDosen.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          final p = listAntreanTTD[index];
-                          return _CardAntreanTtd(
+                          final p = antreanDosen[index];
+                          return _CardTtdDosenPremium(
                             pengajuan: p,
-                            onTapTTD: (role) =>
-                                _eksekusiTandaTangan(context, p.id, role),
+                            onPencetTTD: () => _prosesTandaTanganDosen(
+                              context,
+                              p.id,
+                              p.mahasiswaNama ?? 'Mahasiswa',
+                              svc.token ??
+                                  '', // Pasok token login aktif secara aman ke parameter
+                            ),
                           );
                         },
                       ),
@@ -126,117 +185,151 @@ class _HalamanTtdDigitalState extends State<HalamanTtdDigital> {
   }
 }
 
-// ─── CUSTOM CARD KHUSUS ANTREAN TTD ──────────────────────────────────────────
-class _CardAntreanTtd extends StatelessWidget {
+// ─── ✨ DESIGN CARD PREMIUM VERSI ABANG ✨ ───────────────────────────────────
+class _CardTtdDosenPremium extends StatelessWidget {
   final PengajuanModel pengajuan;
-  final Function(String role) onTapTTD;
+  final VoidCallback onPencetTTD;
 
-  const _CardAntreanTtd({required this.pengajuan, required this.onTapTTD});
+  const _CardTtdDosenPremium({
+    required this.pengajuan,
+    required this.onPencetTTD,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = pengajuan;
+    final nama = p.mahasiswaNama ?? 'Mahasiswa';
+    final inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: AppTheme.cardGradient,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6C63FF).withOpacity(0.4),
-          width: 1.5,
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  p.mahasiswaNama ?? 'Mahasiswa',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFF6C63FF).withOpacity(0.1),
+                  child: Text(
+                    inisial,
+                    style: const TextStyle(
+                      color: Color(0xFF6C63FF),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              StatusBadge(
-                label: p.qrTokenDosen == null
-                    ? 'Butuh TTD Dosen'
-                    : 'Butuh TTD Kaprodi',
-                color: p.qrTokenDosen == null
-                    ? const Color(0xFF6C63FF)
-                    : const Color(0xFF00B4D8),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            p.mahasiswaNim ?? '-',
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 10),
-          InfoRow(
-            icon: Icons.assignment_outlined,
-            label: 'Assignment',
-            value: p.assignmentJudul ?? '-',
-          ),
-          InfoRow(
-            icon: Icons.schedule_outlined,
-            label: 'Total Waktu',
-            value: '${p.assignmentJamKompen ?? 0} jam',
-          ),
-          InfoRow(
-            icon: Icons.calendar_today_outlined,
-            label: 'Lolos Validasi',
-            value: timeago.format(
-              DateTime.tryParse(p.createdAt) ?? DateTime.now(),
-              locale: 'id',
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nama,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                      ),
+                      Text(
+                        p.mahasiswaNim ?? '-',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB020).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Siap TTD',
+                    style: TextStyle(
+                      color: Color(0xFFFFB020),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // DINAMIS BUTTON: Menyesuaikan progres tanda tangan digital
-          if (p.qrTokenDosen == null)
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const SizedBox(height: 14),
+            InfoRow(
+              icon: Icons.assignment_outlined,
+              label: 'Assignment',
+              value: p.assignmentJudul ?? '-',
+            ),
+            InfoRow(
+              icon: Icons.schedule_outlined,
+              label: 'Total Waktu',
+              value: '${p.assignmentJamKompen ?? 0} jam kompen',
+            ),
+            InfoRow(
+              icon: Icons.access_time_rounded,
+              label: 'Masuk Antrean',
+              value: timeago.format(
+                DateTime.tryParse(p.createdAt) ?? DateTime.now(),
+                locale: 'id',
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => onTapTTD('Dosen'),
-                icon: const Icon(Icons.draw_outlined, size: 18),
+                onPressed: onPencetTTD,
+                icon: const Icon(
+                  Icons.draw_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
                 label: const Text(
-                  'Bubuhkan E-TTD Dosen',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  'Bubuhkan E-TTD Dosen Sekarang',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF), // Ungu Modis
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            )
-          else if (p.qrTokenKaprodi == null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => onTapTTD('Kaprodi'),
-                icon: const Icon(Icons.verified_user_outlined, size: 18),
-                label: const Text(
-                  'Sahkan Sebagai Kaprodi (E-TTD)',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00B4D8), // Biru Segar
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  backgroundColor: const Color(0xFF4CAF8D), // Hijau Sukses
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// widget pembantu untuk judul agar tertata rapi
 class SectionTitle extends StatelessWidget {
   final String title;
   const SectionTitle({super.key, required this.title});
@@ -244,10 +337,7 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        top: 8.0,
-        bottom: 12.0,
-      ), // ✅ FIXED: Pakai top, bukan vertical! Anti-Garis Merah!
+      padding: const EdgeInsets.only(top: 8.0, bottom: 12.0),
       child: Text(
         title,
         style: const TextStyle(

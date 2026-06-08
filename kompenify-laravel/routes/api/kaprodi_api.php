@@ -6,33 +6,27 @@ use App\Http\Controllers\Api\PengajuanKompenController;
 
 Route::prefix('kaprodi')->group(function () {
 
-    // 1. Kaprodi membuat assignment baru
-    Route::post('/assignments', [AssignmentController::class, 'store']);
+    // Rute CRUD Assignment
 
-    // 2. Kaprodi melihat list assignment buatan mereka
+    // view
+    // get all
     Route::get('/assignments', [AssignmentController::class, 'index']);
-
-    // 3. Kaprodi melihat detail satu assignment
+    // get details
     Route::get('/assignments/{id}', [AssignmentController::class, 'show']);
-
-    // 4. Kaprodi mengedit assignment
+    // create
+    Route::post('/assignments', [AssignmentController::class, 'store']);
+    // update
     Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
-
-    // 5. Kaprodi menghapus assignment
+    // delete
     Route::delete('/assignments/{id}', [AssignmentController::class, 'destroy']);
-
-    // 6. Ambil antrean tugas kompen rilisannya Kaprodi yang butuh dicek statusnya
+    // melihat daftar pengajuan kompen (get all)
+    Route::get('/pengajuan-kompen', [PengajuanKompenController::class, 'indexPemberiKompen']);
+    // Melihat daftar pengajuan kompen di 1 tugas spesifik (get details)
+    Route::get('/assignments/{assignment_id}/pengajuan-kompen', [PengajuanKompenController::class, 'pengajuanKompenByAssignment']);
+    // menerima/menolak pengajuan
+    Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
+    // GET | Lihat daftar tugas yang menunggu ACC/TTD
     Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
-
-    // 7. Aksi Mengubah Status (Kaprodi milih mhs pas war slot ATAU ACC hasil kerjaan tugas buatannya sendiri)l
-    Route::post('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
-
-    // 8. Eksekusi pengesahan final kompen untuk menerbitkan QR Token Kaprodi (Mengubah status final ke 'diterima')
+    // kasih ttd
     Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
-
-    // GET | Kaprodi melihat antrean meja dia (status 'menunggu_ttd_kaprodi')
-    Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
-
-    // PUT | Eksekusi TTD/ACC Final Kaprodi (Sah Lunas Total / Tolak)
-    Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
 });

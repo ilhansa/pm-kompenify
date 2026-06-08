@@ -176,7 +176,7 @@ class KompenDetailScreen extends StatelessWidget {
     final bool isSedangDikerjakan = p.status == 'sedang dikerjakan';
     final bool isMenungguTTDDosen = p.status == 'menunggu_ttd_dosen';
     final bool isMenungguTTDKaprodi = p.status == 'menunggu_ttd_kaprodi';
-    final bool isDiterima = p.status == 'diterima';
+    // final bool isDiterima = p.status == 'diterima';
 
     return Scaffold(
       appBar: AppBar(
