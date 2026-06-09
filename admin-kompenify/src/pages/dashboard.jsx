@@ -13,6 +13,10 @@ export default function Dashboard() {
     const [message, setMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    // 🚀 STATE PREMIUM SULTAN: Pengatur Modal Pop-up Detail Biodata
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [modalJam, setModalJam] = useState('');
+
     useEffect(() => {
         const token = localStorage.getItem('auth_token');
         if (!token) {
@@ -34,6 +38,30 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error('Gagal mengambil daftar akun', error);
+        }
+    };
+
+    // 🚀 FUNGSI UPDATE JAM KOMPEN DARI DALAM MODAL DIALOG
+    const handleUpdateJamKompenModal = async () => {
+        if (!modalJam || modalJam < 0) {
+            alert("Masukkan jumlah jam yang valid !");
+            return;
+        }
+
+        try {
+            const response = await api.put(`/admin/users/${selectedUser.id}/jam-kompen`, {
+                total_jam_kompen: parseInt(modalJam)
+            });
+
+            if (response.data.success) {
+                alert(`BOOM! ${response.data.message} 😎🏆`);
+                setModalJam(''); 
+                setSelectedUser(null); 
+                fetchUsers(); 
+            }
+        } catch (error) {
+            console.error("Gagal update jam kompen via modal:", error);
+            alert("Proses gagal: " + (error.response?.data?.message || error.message));
         }
     };
 
@@ -104,8 +132,9 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 text-slate-800 font-sans p-6 antialiased">
+        <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 text-slate-800 font-sans p-6 antialiased relative">
             
+            {/* Upper Header Navbar */}
             <div className="flex justify-between items-center bg-white border border-slate-200/80 p-5 rounded-2xl mb-6 shadow-sm">
                 <div>
                     <h1 className="text-xl font-black text-blue-600 tracking-wider">E-KOMPENIFY DASHBOARD</h1>
@@ -122,6 +151,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Panel Kiri: Form Input Data */}
                 <div className="bg-white border border-slate-200/80 p-6 rounded-2xl h-fit shadow-sm">
                     <h2 className="text-xs font-black text-blue-600 tracking-widest mb-5 border-b border-slate-100 pb-3 uppercase">
                         {isEditing ? 'Ubah Akun User' : 'Daftar Akun Baru'}
@@ -175,7 +205,6 @@ export default function Dashboard() {
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-600 active:scale-95 transition-all select-none focus:outline-none p-1"
-                                    title={showPassword ? "Sembunyikan Password" : "Lihat Password"}
                                 >
                                     {showPassword ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -238,28 +267,31 @@ export default function Dashboard() {
                     </form>
                 </div>
 
+                {/* Panel Kanan: Tabel Data Master Akun */}
                 <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="p-6 pb-4 flex flex-col space-y-1.5">
                         <h3 className="text-lg font-semibold leading-none tracking-tight text-slate-900">
                             Daftar Akun Sistem
                         </h3>
                         <p className="text-sm text-slate-500 font-medium">
-                            Manajemen seluruh data akun pengguna yang terdaftar di dalam sistem.
+                            Manajemen seluruh data akun pengguna. Klik nama user untuk melihat detail biodata lengkap !
                         </p>
                     </div>
 
                     <div className="px-6 pb-6">
                         <div className="w-full overflow-auto border border-slate-200 rounded-lg">
                             <table className="w-full caption-bottom text-sm border-collapse">
+                                {/* Header Tabel Rata Tengah */}
                                 <thead className="bg-slate-50/70 border-b border-slate-200">
                                     <tr className="text-slate-500 font-medium text-xs transition-colors">
-                                        <th className="h-10 px-4 text-left align-middle font-medium tracking-wide">NIM / NIP</th>
-                                        <th className="h-10 px-4 text-left align-middle font-medium tracking-wide">Nama</th>
-                                        <th className="h-10 px-4 text-left align-middle font-medium tracking-wide">Role</th>
+                                        <th className="h-10 px-4 text-center align-middle font-medium tracking-wide">NIM / NIP</th>
+                                        <th className="h-10 px-4 text-center align-middle font-medium tracking-wide">Nama</th>
+                                        <th className="h-10 px-4 text-center align-middle font-medium tracking-wide">Role</th>
                                         <th className="h-10 px-4 text-center align-middle font-medium tracking-wide">Aksi</th>
                                     </tr>
                                 </thead>
 
+                                {/* Isi Tabel Rata Tengah */}
                                 <tbody className="divide-y divide-slate-200/60">
                                     {users.length === 0 ? (
                                         <tr>
@@ -271,16 +303,32 @@ export default function Dashboard() {
                                         users.map((user) => (
                                             <tr 
                                                 key={user.id} 
-                                                className="border-b border-slate-200 text-slate-700 transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100"
+                                                className="border-b border-slate-200 text-slate-700 transition-colors hover:bg-slate-50/50"
                                             >
-                                                <td className="p-4 align-middle font-mono text-xs font-semibold text-blue-600">
+                                                {/* Kolom NIM / NIP */}
+                                                <td className="p-4 text-center align-middle font-mono text-xs font-semibold text-blue-600">
                                                     {user.nimNip}
                                                 </td>
-                                                <td className="p-4 align-middle font-medium text-slate-900">
-                                                    {user.nama}
+
+                                                {/* Kolom Nama dengan Container Flex Center */}
+                                                <td 
+                                                    className="p-4 align-middle font-medium text-slate-900 cursor-pointer hover:text-blue-600 group transition duration-150"
+                                                    onClick={() => {
+                                                        setSelectedUser(user);
+                                                        setModalJam(''); 
+                                                    }}
+                                                >
+                                                    <div className="flex justify-center items-center gap-1.5">
+                                                        <span>{user.nama}</span>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition duration-150">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.603 10.601Z" />
+                                                        </svg>
+                                                    </div>
                                                 </td>
-                                                <td className="p-4 align-middle">
-                                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+
+                                                {/* Kolom Role */}
+                                                <td className="p-4 text-center align-middle">
+                                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide border transition-colors ${
                                                         user.role === 'admin' 
                                                             ? 'bg-amber-50 text-amber-700 border-amber-200/60' 
                                                             : 'bg-blue-50 text-blue-700 border-blue-100'
@@ -288,23 +336,27 @@ export default function Dashboard() {
                                                         {user.role}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 align-middle text-center space-x-2">
-                                                    <button 
-                                                        onClick={() => { 
-                                                            setIsEditing(true); 
-                                                            setFormData({ id: user.id, nimNip: user.nimNip, nama: user.nama, role: user.role, password: '' }); 
-                                                            setSelectedProdi(user.role === 'mhs' ? user.prodi || '' : '');
-                                                        }} 
-                                                        className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-slate-200 bg-white h-8 px-3 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(user.id, user.nama)}
-                                                        className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-amber-500 text-white h-8 px-3 hover:bg-amber-600 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
-                                                    >
-                                                        Hapus
-                                                    </button>
+
+                                                {/* Kolom Aksi */}
+                                                <td className="p-4 align-middle">
+                                                    <div className="flex justify-center items-center gap-2 whitespace-nowrap">
+                                                        <button 
+                                                            onClick={() => { 
+                                                                setIsEditing(true); 
+                                                                setFormData({ id: user.id, nimNip: user.nimNip, nama: user.nama, role: user.role, password: '' }); 
+                                                                setSelectedProdi(user.role === 'mhs' ? user.prodi || '' : '');
+                                                            }} 
+                                                            className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-slate-200 bg-white h-8 px-3 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(user.id, user.nama)}
+                                                            className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-amber-500 text-white h-8 px-3 hover:bg-amber-600 transition-colors shadow-sm"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -315,6 +367,118 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* 🚀 COMPONENT POP-UP MODAL BIODATA + KELOLA JAM KOMPEN SULTAN */}
+            {selectedUser && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn p-4">
+                    <div className="bg-white w-full max-w-md border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-5 transform transition-all scale-100">
+                        
+                        {/* Header Modal */}
+                        <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                            <div>
+                                <h3 className="text-base font-black text-blue-600 tracking-wide uppercase">Detail Biodata Akun</h3>
+                                <p className="text-xs text-slate-400">Informasi internal sistem Kompenify</p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedUser(null)}
+                                className="text-slate-400 hover:text-slate-600 text-sm font-bold bg-slate-100 p-1.5 rounded-xl transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Isi Informasi Biodata */}
+                        <div className="space-y-3 text-sm">
+                            <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Nama:</span>
+                                <span className="col-span-2 text-slate-800 font-bold">{selectedUser.nama}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">NIM/NIP:</span>
+                                <span className="col-span-2 text-slate-700 font-mono font-bold">{selectedUser.nimNip}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Role Akses:</span>
+                                <span className="col-span-2 text-slate-700 font-medium capitalize">{selectedUser.role}</span>
+                            </div>
+                            {selectedUser.role === 'mhs' && (
+                                <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                    <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Prodi:</span>
+                                    <span className="col-span-2 text-slate-700 font-semibold">{selectedUser.prodi || 'Belum diset'}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* PANEL AKUMULASI JAM KOMPEN PREMIUM VERSI SULTAN */}
+                        {selectedUser.role === 'mhs' && (
+                            <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 space-y-3 shadow-inner">
+                                
+                                {/* Judul Panel dengan Icon Trend/Dashboard */}
+                                <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-600 animate-pulse">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 3 18.375v-5.25ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125v-9.75ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                                    </svg>
+                                    <h4 className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                                        Panel Akumulasi Jam Kompen
+                                    </h4>
+                                </div>
+
+                                {/* Informasi Status Jam */}
+                                <div className="grid grid-cols-2 gap-2 bg-white border border-blue-200/50 p-2.5 rounded-xl text-xs font-bold shadow-sm">
+                                    <div className="flex items-center gap-1.5 text-slate-700">
+                                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                        <span>Total Jam: {selectedUser.total_jam_kompen ?? 0} Jam</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-amber-500 justify-end">
+                                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                                        <span>Sisa Utang: {selectedUser.sisa_jam_kompen ?? 0} Jam</span>
+                                    </div>
+                                </div>
+
+                                {/* Baris Input dan Tombol Aksi */}
+                                <div className="flex items-center gap-2 relative">
+                                    <div className="relative w-full">
+                                        {/* Icon Jam Pasir di Dalam Input Box */}
+                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                        </span>
+                                        <input 
+                                            type="number" 
+                                            placeholder="Set jumlah jam baru..."
+                                            min="0"
+                                            value={modalJam}
+                                            onChange={e => setModalJam(e.target.value)}
+                                            className="w-full bg-white border border-slate-200 pl-9 pr-3 py-2 text-sm rounded-xl shadow-inner focus:outline-none focus:border-blue-500 font-medium transition duration-150"
+                                        />
+                                    </div>
+                                    
+                                    {/* Tombol Simpan dengan design flat premium  */}
+                                    <button 
+                                        onClick={handleUpdateJamKompenModal}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs uppercase tracking-wider font-black px-4 py-2 rounded-xl transition duration-150 active:scale-95 shadow-md shadow-blue-500/20 whitespace-nowrap flex items-center gap-1"
+                                    >
+                                        <span>Simpan</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tombol Tutup bawah */}
+                        <div className="pt-2">
+                            <button 
+                                onClick={() => setSelectedUser(null)}
+                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-xl transition duration-150 text-xs uppercase tracking-wider"
+                            >
+                                Tutup Detail
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
