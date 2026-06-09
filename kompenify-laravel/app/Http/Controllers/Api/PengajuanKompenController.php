@@ -530,9 +530,8 @@ class PengajuanKompenController extends Controller
 
         return response()->json(['success' => true, 'data' => $query->orderBy('updated_at', 'desc')->get()], 200);
     }
-    // ==========================================
-    // PUT: VERIFIKASI TUGAS (ALUR LENGKAP SESUAI ERD)
-    // ==========================================
+    
+    // PUT: VERIFIKASI TUGAS
     public function verifikasi(Request $request, $id)
     {
         $user = $request->user();
@@ -547,29 +546,24 @@ class PengajuanKompenController extends Controller
         }
 
         $request->validate([
-            'status'  => 'required|in:diterima,ditolak',
-            'catatan' => 'nullable|string', 
-            // file_ttd dihapus jika murni pakai TTD Digital dari database
+            'status' => 'required|in:diterima,ditolak',
         ]);
 
         try {
-            $statusBaruPengajuan = '';
+            $updateData = [];
             $pesan = '';
-            $isFinalKaprodi = false; // Penanda untuk me-load relasi di response JSON nanti
 
             // ─── FASE 1: PERANG SLOT PELAMAR (pending -> sedang dikerjakan) ───
             if ($pengajuan->status === 'pending') {
-                
-                // Hanya si Pembuat Tugas yang boleh milih mahasiswa
                 if ($pengajuan->assignment->dosen_id !== $user->id) {
                     return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
                 }
 
                 if ($request->status === 'diterima') {
-                    $statusBaruPengajuan = 'sedang dikerjakan';
+                    $updateData['status'] = 'sedang dikerjakan';
                     $pesan = 'Mahasiswa resmi mulai bekerja!';
 
-                    // Auto-reject mahasiswa lain yang rebutan slot
+                    // Auto-reject pelamar lain
                     PengajuanKompen::where('assignment_id', $pengajuan->assignment_id)
                         ->where('id', '!=', $pengajuan->id)
                         ->where('status', 'pending')
@@ -577,82 +571,116 @@ class PengajuanKompenController extends Controller
 
                     $pengajuan->assignment->update(['status' => 'sedang dikerjakan']);
                 } else {
-                    $statusBaruPengajuan = 'ditolak';
+                    $updateData['status'] = 'ditolak';
                     $pesan = 'Lamaran mahasiswa ditolak.';
                 }
             }
             
             // ─── FASE 2: VERIFIKASI PEMBUAT TUGAS (menunggu_ttd_dosen -> menunggu_ttd_kaprodi) ───
             else if ($pengajuan->status === 'menunggu_ttd_dosen') {
-                
-                // Hanya si Pembuat Tugas yang boleh nge-ACC (Meskipun jabatannya Kaprodi, dia bertindak sbg Dosen di sini)
                 if ($pengajuan->assignment->dosen_id !== $user->id) {
                     return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
                 }
 
                 if ($request->status === 'diterima') {
-                    $statusBaruPengajuan = 'menunggu_ttd_kaprodi'; 
-                    $pesan = 'Hasil kerja di-ACC oleh Pembuat Tugas! Berkas dikirim ke antrean Kaprodi.';
+                    $updateData['status'] = 'menunggu_ttd_kaprodi';
+                    // 🚀 Di sini Token TTD Digital Dosen langsung disematkan ke kolom database!
+                    $updateData['qr_token_dosen'] = 'E-KOMPEN-DSN-' . strtoupper(Str::random(10)) . '-' . time();
+                    $pesan = 'Hasil kerja VALID, E-TTD Dosen berhasil disematkan! Berkas dikirim ke antrean Kaprodi.';
                 } else {
-                    $statusBaruPengajuan = 'sedang dikerjakan'; 
+                    $updateData['status'] = 'sedang dikerjakan'; 
                     $pesan = 'Hasil kerja ditolak, mahasiswa diminta revisi.';
                 }
-
-                // Catat ke tabel `verifikasi` sesuai ERD
-                \App\Models\VerifikasiKompen::create([
-                    'pengajuan_id' => $pengajuan->id,
-                    'user_id'      => $user->id,
-                    'status'       => $request->status, // diterima / ditolak
-                    'catatan'      => $request->catatan,
-                ]);
             }
 
             // ─── FASE 3: TTD FINAL KAPRODI (menunggu_ttd_kaprodi -> diterima) ───
             else if ($pengajuan->status === 'menunggu_ttd_kaprodi') {
-                
-                // Hanya role Kaprodi asli yang bisa masuk ke sini sebagai Bos Besar
                 if ($user->role !== 'kaprodi') {
                     return response()->json(['success' => false, 'message' => 'Hanya Kaprodi yang berhak memberikan pengesahan akhir!'], 403);
                 }
 
-                $isFinalKaprodi = true;
-
                 if ($request->status === 'diterima') {
-                    $statusBaruPengajuan = 'diterima'; // LUNAS! Memicu tabel Surat_Kompen nantinya
-                    $pesan = 'Kompen sah! Surat bebas kompen siap dicetak.';
+                    $updateData['status'] = 'diterima'; 
+                    // 🚀 Di sini Token TTD Digital Kaprodi resmi disematkan! Dokumen Lunas Mutlak.
+                    $updateData['qr_token_kaprodi'] = 'E-KOMPEN-KPR-' . strtoupper(Str::random(10)) . '-' . time();
+                    $pesan = '✓ Kompen SAH & LUNAS TOTAL! E-TTD Kaprodi berhasil disematkan.';
                 } else {
-                    $statusBaruPengajuan = 'sedang dikerjakan'; // Disuruh ngulang/revisi
+                    $updateData['status'] = 'sedang dikerjakan'; 
                     $pesan = 'Ditolak oleh Kaprodi, mahasiswa diminta revisi.';
                 }
-
-                // Catat ke tabel `persetujuan_kaprodis` sesuai ERD
-                \App\Models\PersetujuanKaprodi::create([
-                    'pengajuan_id' => $pengajuan->id,
-                    'kaprodi_id'   => $user->id,
-                    'keputusan'    => $request->status, // diterima / ditolak
-                ]);
             } 
             
             else {
-                return response()->json(['success' => false, 'message' => 'Fase pengajuan tidak valid! (Status saat ini: ' . $pengajuan->status . ')'], 400);
+                return response()->json(['success' => false, 'message' => 'Fase pengajuan tidak valid!'], 400);
             }
 
-            // ─── UPDATE STATUS ENUM UTAMA PENGAJUAN ───
-            $pengajuan->update([
-                'status' => $statusBaruPengajuan
-            ]);
-
-            // Tampilkan relasi pembuktian di Postman/Flutter sesuai fasenya
-            $relasiLoad = $isFinalKaprodi ? 'persetujuanKaprodi' : 'verifikasis';
+            // ─── EKSEKUSI UPDATE SATU PINTU ───
+            $pengajuan->update($updateData);
 
             return response()->json([
                 'success' => true,
                 'message' => $pesan,
-                'data'    => $pengajuan->load($relasiLoad)
+                'data'    => $pengajuan
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Gagal memverifikasi: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // ==========================================
+    // GET: CETAK PDF SURAT BEBAS KOMPEN (KHUSUS MAHASISWA)
+    // ==========================================
+    public function cetakSurat(Request $request, $id)
+    {
+        $user = $request->user();
+
+        // 1. Satpam Pintu: Cuma mahasiswa yang boleh cetak
+        if ($user->role !== 'mhs') {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya mahasiswa yang bisa cetak surat.'], 403);
+        }
+
+        // 2. Tarik data lengkap dari database
+        $pengajuan = PengajuanKompen::with(['mahasiswa.user', 'assignment'])->find($id);
+
+        if (!$pengajuan) {
+            return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+        }
+
+        // 3. Satpam Kepemilikan: Nggak boleh nyetak surat punya orang lain
+        if ($pengajuan->mahasiswa->user_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak! Ini bukan surat kompen milikmu.'], 403);
+        }
+
+        // 4. Kunci Validasi: Cuma yang statusnya 'diterima' (Lunas) yang bisa dicetak
+        if ($pengajuan->status !== 'diterima') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Gagal cetak! Surat belum disahkan atau masih dalam proses.'
+            ], 400);
+        }
+
+        try {
+            // 5. Generate URL Publik untuk disematkan ke dalam QR Code
+            // URL ini mengarah ke rute ValidasiController yang kita buat sebelumnya
+            $urlValidasiDosen = url('/api/validasi-dokumen/' . $pengajuan->qr_token_dosen);
+            $urlValidasiKaprodi = url('/api/validasi-dokumen/' . $pengajuan->qr_token_kaprodi);
+
+            // 6. Sihir Data Menjadi PDF! (Memanggil file blade HTML)
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.surat_kompen', compact('pengajuan', 'urlValidasiDosen', 'urlValidasiKaprodi'));
+            
+            // Atur ukuran kertas
+            $pdf->setPaper('a4', 'portrait');
+
+            // 7. Format nama file unduhan biar rapi pakai nama user
+            $namaMhs = str_replace(' ', '_', $pengajuan->mahasiswa->user->nama);
+            $namaFile = 'Surat_Bebas_Kompen_' . $namaMhs . '.pdf';
+
+            // Kirim file ke Flutter/Browser untuk di-download
+            return $pdf->download($namaFile);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal mencetak PDF: ' . $e->getMessage()], 500);
         }
     }
 }

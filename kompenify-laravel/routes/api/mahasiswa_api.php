@@ -36,4 +36,7 @@ Route::prefix('mahasiswa')->group(function () {
 
     // PUT | Tandai tugas selesai oleh mahasiswa
     Route::put('/pengajuan-kompen/{id}/selesai', [PengajuanKompenController::class, 'tandaiSelesai']);
+
+    // GET: Cetak Surat Bebas Kompen (Hanya Mahasiswa)
+    Route::get('/pengajuan-kompen/{id}/cetak-surat', [PengajuanKompenController::class, 'cetakSurat']);
 });

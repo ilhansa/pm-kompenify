@@ -3,9 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\NotifikasiController;
+use App\Http\Controllers\Api\ValidasiController;
+
 
 // 1. GERBANG PUBLIK (Bisa diakses tanpa login / tanpa token)
 Route::post('/login', [AuthController::class, 'login']);
+// GET: URL untuk di-scan oleh kamera HP guna mengecek keaslian token E-TTD
+Route::get('/validasi-dokumen/{token}', [ValidasiController::class, 'cekDokumen']);
 
 
 // 2. GERBANG PRIVAT (Wajib Lolos Autentikasi & Bawa Token Sanctum)
