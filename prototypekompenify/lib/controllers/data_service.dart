@@ -311,6 +311,32 @@ class DataService extends ChangeNotifier {
     return result;
   }
 
+  Future<Map<String, dynamic>> hapusBuktiFoto(String pengajuanId, String fotoUrl) async {
+  if (_token == null) return {'success': false, 'message': 'Belum login'};
+  try {
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+    final response = await http.delete(
+      Uri.parse('$baseUrl/mahasiswa/pengajuan/$pengajuanId/bukti-foto'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $_token',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({'foto_url': fotoUrl}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      await fetchPengajuanSaya();
+      return {'success': true, 'message': data['message'] ?? 'Foto dihapus'};
+    } else {
+      return {'success': false, 'message': data['message'] ?? 'Gagal menghapus'};
+    }
+  } catch (e) {
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
   Future<Map<String, dynamic>> tandaiSelesai(String pengajuanId) async {
     if (_token == null) return {'success': false, 'message': 'Belum login'};
     final result = await _mhsService.tandaiSelesai(_token!, pengajuanId);
