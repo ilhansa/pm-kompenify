@@ -11,3 +11,4 @@ Route::get('/admin/users', [AdminUserController::class, 'lihatDaftarAkun']);
 Route::post('/admin/users', [AdminUserController::class, 'registerAkun']);
 Route::put('/admin/users/{id}', [AdminUserController::class, 'editAkun']);
 Route::delete('/admin/users/{id}', [AdminUserController::class, 'hapusAkun']);
+Route::put('/admin/users/{id}/jam-kompen', [AdminUserController::class, 'updateJamKompen']);

@@ -14,7 +14,8 @@ class AdminUserController extends Controller
     {
         $users = DB::table('users')
         ->leftJoin('mahasiswas', 'users.id', '=', 'mahasiswas.user_id')
-        ->select('users.id', 'users.nimNip', 'users.nama', 'users.role', 'mahasiswas.prodi')
+        ->select('users.id', 'users.nimNip', 'users.nama', 'users.role', 'mahasiswas.prodi','mahasiswas.total_jam_kompen',
+        'mahasiswas.sisa_jam_kompen')
         ->orderBy('users.created_at', 'desc')
         ->get();
 
@@ -186,5 +187,43 @@ class AdminUserController extends Controller
             'success' => true,
             'message' => 'Akun berhasil dihapus dari sistem!'
         ], 200);
+    }
+
+    public function updateJamKompen(Request $request, $id)
+    {
+        // 1. Validasi input jam kompen
+        $request->validate([
+            'total_jam_kompen' => 'required|integer|min:0',
+        ]);
+
+        try {
+            // 2. Cari di tabel mahasiswas berdasarkan kolom 'user_id'
+            // Karena $id yang dikirim dari React adalah ID milik akun user
+            $mahasiswa = \App\Models\Mahasiswa::where('user_id', $id)->first();
+
+            if (!$mahasiswa) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data mahasiswa tidak ditemukan di sistem!'
+                ], 404);
+            }
+
+            // 3. Update data jam kompen
+            $mahasiswa->total_jam_kompen = $request->total_jam_kompen;
+            $mahasiswa->sisa_jam_kompen = $request->total_jam_kompen;
+            $mahasiswa->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jam kompen berhasil diperbarui!',
+                'data' => $mahasiswa
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal meng-update database: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
