@@ -169,8 +169,8 @@ class _VerifikasiCard extends StatelessWidget {
         border: Border.all(
           color: isMonitoringMode
               ? (isUdahSelesai
-                    ? const Color(0xFF6C63FF).withOpacity(0.5)
-                    : Colors.white10)
+                  ? const Color(0xFF6C63FF).withOpacity(0.5)
+                  : Colors.white10)
               : AppTheme.accentOrange.withOpacity(0.4),
           width: 1.5,
         ),
@@ -390,10 +390,11 @@ class _VerifikasiCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        // ACC KERJAAN: Nembak rute updateStatus bawa string 'diterima'
-                        final result = await svc.updateStatusPengajuan(
-                          p.id,
-                          'diterima',
+                        // 🚀 PERUBAHAN DI SINI: Nembak verifikasiPengajuan bawa status diterima & role dosen
+                        final result = await svc.verifikasiPengajuan(
+                          id: p.id,
+                          status: 'diterima',
+                          role: 'dosen',
                         );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -408,8 +409,6 @@ class _VerifikasiCard extends StatelessWidget {
                                   : AppTheme.accentRed,
                             ),
                           );
-                          if (result['success'] == true)
-                            svc.fetchPengajuanMenungguVerifikasi();
                         }
                       },
                       icon: const Icon(Icons.send_rounded, size: 14),
@@ -453,12 +452,10 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
+            // 🚀 PERUBAHAN DI SINI
             final result = await context
                 .read<DataService>()
-                .updateStatusPengajuan(p.id, 'diterima');
-            if (context.mounted && result['success'] == true) {
-              context.read<DataService>().fetchPengajuanMenungguVerifikasi();
-            }
+                .verifikasiPengajuan(id: p.id, status: 'diterima', role: 'dosen');
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.accentGreen,
@@ -487,12 +484,10 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
+            // 🚀 PERUBAHAN DI SINI
             final result = await context
                 .read<DataService>()
-                .updateStatusPengajuan(p.id, 'ditolak');
-            if (context.mounted && result['success'] == true) {
-              context.read<DataService>().fetchPengajuanMenungguVerifikasi();
-            }
+                .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'dosen');
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
           child: const Text('Tolak'),
@@ -519,12 +514,10 @@ void _showRevisiDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
+            // 🚀 PERUBAHAN DI SINI
             final result = await context
                 .read<DataService>()
-                .updateStatusPengajuan(p.id, 'ditolak');
-            if (context.mounted && result['success'] == true) {
-              context.read<DataService>().fetchPengajuanMenungguVerifikasi();
-            }
+                .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'dosen');
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
           child: const Text('Tolak & Revisi'),

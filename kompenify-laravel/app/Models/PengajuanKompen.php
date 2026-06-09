@@ -12,11 +12,13 @@ class PengajuanKompen extends Model
     protected $table = 'pengajuan_kompen';
 
     protected $fillable = [
-        'id',
-        'mahasiswa_id',
-        'assignment_id',
-        'status',
-    ];
+    'id',
+    'mahasiswa_id',
+    'assignment_id',
+    'status',
+    'qr_token_dosen',   
+    'qr_token_kaprodi', 
+];
 
     public $incrementing = false;
     protected $keyType = 'string';

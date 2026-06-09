@@ -2,7 +2,7 @@
 // Halaman daftar pelamar assignment untuk Kaprodi.
 // Perbedaan dari dosen/daftar_pelamar_page.dart:
 //   - Endpoint: /api/kaprodi/assignments/{id}/pengajuan-kompen
-//   - updateStatus tetap pakai DataService.updateStatusPengajuan (sudah handle role kaprodi)
+//   - Menggunakan DataService.verifikasiPengajuan dengan parameter role 'kaprodi'
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -106,9 +106,13 @@ class _KaprodiDaftarPelamarPageState
     if (confirm != true) return;
 
     try {
-      // DataService.updateStatusPengajuan sudah otomatis detect role kaprodi
-      final result =
-          await context.read<DataService>().updateStatusPengajuan(p.id, status);
+      // 🚀 DI SINI PERUBAHANNYA: Menggunakan verifikasiPengajuan dengan role kaprodi
+      final result = await context.read<DataService>().verifikasiPengajuan(
+        id: p.id,
+        status: status,
+        role: 'kaprodi',
+      );
+
       if (result['success'] == true) {
         _showSnackbar(
           status == 'diterima'
