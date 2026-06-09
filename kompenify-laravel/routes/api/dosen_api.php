@@ -35,4 +35,7 @@ Route::prefix('dosen')->group(function () {
     // PUT | Eksekusi Verifikasi Dosen (ACC War / ACC Hasil Kerja / Tolak)
     Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
 
+    // Tambahkan di dalam Route::prefix('dosen')->group(function () { ... });
+Route::get('/assignments/{assignment_id}/pengajuan-kompen', [PengajuanKompenController::class, 'pengajuanKompenByAssignment']);
+
 });
