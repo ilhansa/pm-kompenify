@@ -16,12 +16,12 @@ class KaprodiApproval extends StatelessWidget {
 
     // 🚀 FILTER SAKTI SULTAN (MEJA UTAMA PIMPINAN):
     // Kaprodi HANYA melihat berkas mahasiswa dari dosen manapun yang sudah lolos TTD Dosen Pembimbing
-    // Yaitu yang status di database Laragon kelompok lu bernilai 'menunggu_ttd_kaprodi'
+    // Yaitu yang status di database bernilai 'menunggu_ttd_kaprodi'
     final pending = svc.pengajuanMenungguVerifikasiKaprodi
         .where((p) => p.status == 'menunggu_ttd_kaprodi')
         .toList();
 
-    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi ('selesai')
+    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi ('diterima' di database API kita)
     final history = svc.pengajuanMenungguVerifikasiKaprodi
         .where((p) => p.status == 'selesai' || p.status == 'diterima')
         .toList();
@@ -294,10 +294,11 @@ class _ApprovalCard extends StatelessWidget {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              // ⚡ Nembak updateStatusPengajuan menjadi 'selesai' ke backend Laravel lorr
+              // 🚀 PERUBAHAN DI SINI: Nembak verifikasiPengajuan jadi 'diterima'
               final result = await context
                   .read<DataService>()
-                  .berikanTandaTanganKaprodi(p.id);
+                  .verifikasiPengajuan(id: p.id, status: 'diterima', role: 'kaprodi');
+                  
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -312,11 +313,6 @@ class _ApprovalCard extends StatelessWidget {
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
-                if (result['success'] == true) {
-                  context
-                      .read<DataService>()
-                      .fetchPengajuanMenungguVerifikasiKaprodi();
-                }
               }
             },
             child: const Text(
@@ -340,7 +336,7 @@ class _ApprovalCard extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         content: const Text(
-          'Yakin ingin menolak dokumen ini dan mengembalikannya ke meja Dosen Pembimbing semula?',
+          'Yakin ingin menolak dokumen ini dan meminta mahasiswa untuk revisi pengerjaan tugasnya?',
         ),
         actions: [
           TextButton(
@@ -351,16 +347,17 @@ class _ApprovalCard extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.accentRed),
             onPressed: () async {
               Navigator.pop(context);
-              // Mengembalikan berkas ke status tunggu ttd dosen semula
+              // 🚀 PERUBAHAN DI SINI: Nembak verifikasiPengajuan jadi 'ditolak'
               final result = await context
                   .read<DataService>()
-                  .updateStatusPengajuan(p.id, 'menunggu_ttd_dosen');
+                  .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'kaprodi');
+                  
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
                       result['success'] == true
-                          ? 'Dokumen dikembalikan ke meja Dosen Pembimbing.'
+                          ? 'Dokumen ditolak dan dikembalikan untuk direvisi.'
                           : '❌ ${result['message']}',
                     ),
                     backgroundColor: result['success'] == true
@@ -369,11 +366,6 @@ class _ApprovalCard extends StatelessWidget {
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
-                if (result['success'] == true) {
-                  context
-                      .read<DataService>()
-                      .fetchPengajuanMenungguVerifikasiKaprodi();
-                }
               }
             },
             child: const Text(

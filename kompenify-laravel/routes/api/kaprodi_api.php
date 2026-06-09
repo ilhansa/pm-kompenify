@@ -29,4 +29,6 @@ Route::prefix('kaprodi')->group(function () {
     Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
     // kasih ttd
     Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
+    // Rute Sakti Satu Pintu untuk Kaprodi
+    Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
 });

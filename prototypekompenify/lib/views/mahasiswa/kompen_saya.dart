@@ -8,6 +8,9 @@ import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 class KompenSayaScreen extends StatelessWidget {
   const KompenSayaScreen({super.key});
@@ -534,6 +537,7 @@ class KompenDetailScreen extends StatelessWidget {
   }
 }
 
+// ─── GANTI SELURUH class _BuktiFotoSection ─────────────────────────────────
 class _BuktiFotoSection extends StatelessWidget {
   final PengajuanModel pengajuan;
   const _BuktiFotoSection({required this.pengajuan});
@@ -543,14 +547,9 @@ class _BuktiFotoSection extends StatelessWidget {
     String? domain = dotenv.env['NGROK_URL'] ?? dotenv.env['BASE_URL'];
 
     if (domain != null && domain.isNotEmpty) {
-      if (domain.endsWith('/api')) {
-        domain = domain.substring(0, domain.length - 4);
-      } else if (domain.endsWith('/api/')) {
-        domain = domain.substring(0, domain.length - 5);
-      }
-      if (domain.endsWith('/')) {
-        domain = domain.substring(0, domain.length - 1);
-      }
+      if (domain.endsWith('/api')) domain = domain.substring(0, domain.length - 4);
+      else if (domain.endsWith('/api/')) domain = domain.substring(0, domain.length - 5);
+      if (domain.endsWith('/')) domain = domain.substring(0, domain.length - 1);
       if (cleanUrl.contains('storage/')) {
         final String pathSetelahStorage = cleanUrl.split('storage/')[1];
         return '$domain/storage/$pathSetelahStorage';
@@ -562,9 +561,47 @@ class _BuktiFotoSection extends StatelessWidget {
     return fallbackUrl;
   }
 
+  Future<void> _hapusFoto(BuildContext context, String url) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: const Text('Hapus Foto?'),
+        content: const Text('Foto ini akan dihapus dari bukti kompen kamu.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus', style: TextStyle(color: AppTheme.accentRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final result = await context.read<DataService>().hapusBuktiFoto(pengajuan.id, url);
+    if (context.mounted) {
+      await context.read<DataService>().fetchPengajuanSaya();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success'] == true ? '✅ Foto dihapus' : '❌ ${result['message']}',
+          ),
+          backgroundColor:
+              result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final buktiList = pengajuan.buktiFotos;
+    // Status: boleh hapus hanya saat sedang dikerjakan
+    final bool bolehHapus = pengajuan.status == 'sedang dikerjakan';
     debugPrint('🖼️ buktiFotos: $buktiList');
 
     return Container(
@@ -591,64 +628,78 @@ class _BuktiFotoSection extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: buktiList.map((url) {
+              children: buktiList.asMap().entries.map((entry) {
+                final url = entry.value;
                 final fixedUrl = _fixUrl(url);
-                final Map<String, String> ngrokHeaders = {
-                  'ngrok-skip-browser-warning': 'true',
-                };
+                const ngrokHeaders = {'ngrok-skip-browser-warning': 'true'};
 
-                return GestureDetector(
-                  onTap: () => showDialog(
-                    context: context,
-                    builder: (_) => Dialog(
-                      backgroundColor: Colors.transparent,
+                return Stack(
+                  children: [
+                    // ── Thumbnail ────────────────────────────────────────
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _FotoViewerScreen(
+                            urls: buktiList.map(_fixUrl).toList(),
+                            initialIndex: entry.key,
+                          ),
+                        ),
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
                           fixedUrl,
                           headers: ngrokHeaders,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Text(
-                              'Gagal menampilkan detail foto',
-                              style: TextStyle(color: Colors.white),
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) => progress == null
+                              ? child
+                              : Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: AppTheme.bgCardLight,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: AppTheme.bgCardLight,
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: AppTheme.textMuted,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      fixedUrl,
-                      headers: ngrokHeaders,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) => progress == null
-                          ? child
-                          : Container(
-                              width: 80,
-                              height: 80,
-                              color: AppTheme.bgCardLight,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
+
+                    // ── Tombol × hapus (hanya saat sedang dikerjakan) ────
+                    if (bolehHapus)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: GestureDetector(
+                          onTap: () => _hapusFoto(context, url),
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              shape: BoxShape.circle,
                             ),
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 80,
-                        height: 80,
-                        color: AppTheme.bgCardLight,
-                        child: const Icon(
-                          Icons.broken_image_outlined,
-                          color: AppTheme.textMuted,
+                            child: const Icon(
+                              Icons.close_rounded,
+                              size: 13,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
                 );
               }).toList(),
             ),
@@ -657,3 +708,228 @@ class _BuktiFotoSection extends StatelessWidget {
     );
   }
 }
+
+// ─── TAMBAHKAN class baru ini di bawah _BuktiFotoSection ───────────────────
+class _FotoViewerScreen extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _FotoViewerScreen({required this.urls, required this.initialIndex});
+
+  @override
+  State<_FotoViewerScreen> createState() => _FotoViewerScreenState();
+}
+
+class _FotoViewerScreenState extends State<_FotoViewerScreen> {
+  late PageController _pageController;
+  late int _current;
+  bool _downloading = false;
+
+  static const _ngrokHeaders = {'ngrok-skip-browser-warning': 'true'};
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _download(String url) async {
+  setState(() => _downloading = true);
+  try {
+    final bytes = await _fetchBytes(url);
+    if (bytes == null) throw Exception('Gagal mengunduh foto');
+
+    final dir = await getApplicationDocumentsDirectory();
+    final fileName = 'kompen_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Foto disimpan: ${file.path}'),
+          backgroundColor: AppTheme.accentGreen,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Gagal menyimpan: $e'),
+          backgroundColor: AppTheme.accentRed,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _downloading = false);
+  }
+}
+
+Future<Uint8List?> _fetchBytes(String url) async {
+  try {
+    final client = HttpClient();
+    final request = await client.getUrl(Uri.parse(url));
+    _ngrokHeaders.forEach((k, v) => request.headers.set(k, v));
+    final response = await request.close();
+    final bytes = await consolidateHttpClientResponseBytes(response);
+    client.close();
+    return bytes;
+  } catch (_) {
+    return null;
+  }
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // ── PageView dengan InteractiveViewer (zoom + pan) ─────────────
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.urls.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) {
+              return InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5.0,
+                child: Center(
+                  child: Image.network(
+                    widget.urls[i],
+                    headers: _ngrokHeaders,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image_outlined,
+                              color: Colors.white54, size: 48),
+                          SizedBox(height: 8),
+                          Text('Gagal memuat foto',
+                              style: TextStyle(color: Colors.white54)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ── Top bar: tutup + counter ───────────────────────────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  // Tombol tutup (×)
+                  _CircleIconBtn(
+                    icon: Icons.close_rounded,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  // Counter  "2 / 5"
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_current + 1} / ${widget.urls.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Tombol download
+                  _downloading
+                      ? const SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        )
+                      : _CircleIconBtn(
+                          icon: Icons.download_rounded,
+                          onTap: () => _download(widget.urls[_current]),
+                        ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Dot indicator (bawah) ──────────────────────────────────────
+          if (widget.urls.length > 1)
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.urls.length, (i) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == _current ? 18 : 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: i == _current
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Helper widget: tombol bulat transparan ──────────────────────────────────
+class _CircleIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CircleIconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+}
+

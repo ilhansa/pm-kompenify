@@ -99,10 +99,13 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
     if (confirm != true) return;
 
     try {
-      final result = await context.read<DataService>().updateStatusPengajuan(
-        p.id,
-        status,
+      // 🚀 DI SINI PERUBAHANNYA: Menggunakan verifikasiPengajuan
+      final result = await context.read<DataService>().verifikasiPengajuan(
+        id: p.id,
+        status: status,
+        role: 'dosen', // 👈 Pastikan role dosen karena ini halaman Daftar Pelamar
       );
+      
       if (result['success'] == true) {
         _showSnackbar(
           status == 'diterima'
