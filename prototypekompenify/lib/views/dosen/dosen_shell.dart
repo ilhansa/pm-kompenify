@@ -6,7 +6,6 @@ import '../shared/profil_screen.dart';
 import 'dosen_dashboard.dart';
 import 'dosen_assignment.dart';
 import 'dosen_verifikasi.dart';
-import 'halaman_ttd_digital.dart'; // 🚀 1. TAMBAHKAN IMPORT HALAMAN BARU LU
 
 // ─── Dosen Shell ─────────────────────────────────────────────────────────────
 class DosenShell extends StatefulWidget {
@@ -24,7 +23,6 @@ class _DosenShellState extends State<DosenShell> {
     DosenDashboard(),
     DosenAssignment(),
     DosenVerifikasi(),
-    HalamanTtdDigital(), // <--- Masuk ke indeks 3
     NotifikasiScreen(), // <--- Geser ke indeks 4
     ProfilScreen(), // <--- Geser ke indeks 5
   ];
@@ -59,12 +57,6 @@ class _DosenShellState extends State<DosenShell> {
               icon: Icon(Icons.verified_outlined),
               selectedIcon: Icon(Icons.verified_rounded),
               label: 'Verifikasi',
-            ),
-            // 🚀 3. TAMBAHKAN ICON TOMBOL E-TTD DI NAVIGATION BAR
-            NavigationDestination(
-              icon: Icon(Icons.draw_outlined),
-              selectedIcon: Icon(Icons.draw_rounded),
-              label: 'E-TTD',
             ),
             NavigationDestination(
               icon: Icon(Icons.notifications_outlined),

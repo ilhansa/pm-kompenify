@@ -297,7 +297,7 @@ class _ApprovalCard extends StatelessWidget {
               // ⚡ Nembak updateStatusPengajuan menjadi 'selesai' ke backend Laravel lorr
               final result = await context
                   .read<DataService>()
-                  .updateStatusPengajuan(p.id, 'selesai');
+                  .berikanTandaTanganKaprodi(p.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
