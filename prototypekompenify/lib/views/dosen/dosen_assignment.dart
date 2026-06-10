@@ -18,15 +18,18 @@ class DosenAssignment extends StatefulWidget {
   State<DosenAssignment> createState() => _DosenAssignmentState();
 }
 
-class _DosenAssignmentState extends State<DosenAssignment> {
+class _DosenAssignmentState extends State<DosenAssignment>
+    with AutomaticKeepAliveClientMixin {
+  // 2. Wajib return true agar halaman di-keep di memori HP
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Ambil token dari AuthController
       final token = context.read<AuthController>().token;
       if (token != null) {
-        // Panggil fungsi get data dengan menyertakan token
         context.read<DosenController>().fetchAssignments(token);
       }
     });
@@ -34,6 +37,7 @@ class _DosenAssignmentState extends State<DosenAssignment> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // 1. Membaca data state koleksi penugasan dari DosenController
     final dosenController = context.watch<DosenController>();
     final list = dosenController.assignmentsApi;
@@ -65,10 +69,20 @@ class _DosenAssignmentState extends State<DosenAssignment> {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                // Menggunakan sinkronisasi profil terpusat dari AuthController
-                onRefresh: () =>
-                    context.read<AuthController>().refreshProfile(),
-                child: list.isEmpty
+                onRefresh: () async {
+                  final token = context.read<AuthController>().token ?? '';
+                  if (token.isNotEmpty) {
+                    // 4. Khusus pas ditarik ke bawah baru kita set forceRefresh: true
+                    await context.read<DosenController>().fetchAssignments(
+                      token,
+                      forceRefresh: true,
+                    );
+                  }
+                  await context.read<AuthController>().refreshProfile();
+                },
+                child: dosenController.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : list.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [

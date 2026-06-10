@@ -41,5 +41,5 @@ Route::prefix('mahasiswa')->group(function () {
     Route::get('/pengajuan-kompen/riwayat-selesai', [PengajuanKompenController::class, 'indexRiwayatSelesai']);
 
     // GET | TEMPAT BUAT MAHASISWA AMBIL DATA UNTUK DI CETAK SURATNYA
-    Route::get('/pengajuan-kompen/{id}/cetak-surat', [PengajuanKompenController::class, 'cetakSurat']);
+    Route::get('/pengajuan-kompen/{id}/cetak-surat', [PengajuanKompenController::class, 'cetakSurat'])->name('api.cetak-surat');
 });

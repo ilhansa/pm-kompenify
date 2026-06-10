@@ -506,7 +506,7 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
     builder: (_) => AlertDialog(
       backgroundColor: AppTheme.bgCard,
       title: const Text('Pilih Mahasiswa'),
-      content: Text('Kunci slot tugas ini untuk ${p.mahasiswaNama}?'),
+      content: Text('Yakin Pilih Mahasiswa ini ?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

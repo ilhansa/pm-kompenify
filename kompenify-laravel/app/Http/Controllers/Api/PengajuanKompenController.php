@@ -638,57 +638,58 @@ class PengajuanKompenController extends Controller
         }
     }
 
-    // ==========================================
-    // GET: CETAK PDF SURAT BEBAS KOMPEN (KHUSUS MAHASISWA)
+// ==========================================
+    // GET: CETAK PDF + DETEKTIF LOG EROR SAKTI
     // ==========================================
     public function cetakSurat(Request $request, $id)
     {
-        $user = $request->user();
-
-        // 1. Satpam Pintu: Cuma mahasiswa yang boleh cetak
-        if ($user->role !== 'mhs') {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak! Hanya mahasiswa yang bisa cetak surat.'], 403);
-        }
-
-        // 2. Tarik data lengkap dari database
-        $pengajuan = PengajuanKompen::with(['mahasiswa.user', 'assignment'])->find($id);
-
-        if (!$pengajuan) {
-            return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
-        }
-
-        // 3. Satpam Kepemilikan: Nggak boleh nyetak surat punya orang lain
-        if ($pengajuan->mahasiswa->user_id !== $user->id) {
-            return response()->json(['success' => false, 'message' => 'Akses ditolak! Ini bukan surat kompen milikmu.'], 403);
-        }
-
-        // 4. Kunci Validasi: Cuma yang statusnya 'diterima' (Lunas) yang bisa dicetak
-        if ($pengajuan->status !== 'diterima') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal cetak! Surat belum disahkan atau masih dalam proses.'
-            ], 400);
-        }
-
+        // 🚀 LOG 1: Deteksi apakah request dari Flutter Sultan beneran masuk ke fungsi ini
+        \Illuminate\Support\Facades\Log::info("=== DETEKTIF PDF: ADA TEMBAKAN MASUK ===");
+        \Illuminate\Support\Facades\Log::info("ID Pengajuan yang dicari: " . $id);
+        
         try {
-            // 5. Generate URL Publik untuk disematkan ke dalam QR Code
-            // URL ini mengarah ke rute ValidasiController yang kita buat sebelumnya
+            // 1. Tarik data dari database
+            $pengajuan = PengajuanKompen::with(['mahasiswa.user', 'assignment'])->find($id);
+
+            // 🚀 LOG 2: Cek apakah datanya ketemu di database Laragon
+            if (!$pengajuan) {
+                \Illuminate\Support\Facades\Log::error("❌ DETEKTIF PDF: ID Pengajuan {$id} TIDAK KETEMU di database!");
+                return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+            }
+
+            \Illuminate\Support\Facades\Log::info("✅ DETEKTIF PDF: Data ketemu! Status saat ini: " . $pengajuan->status);
+
+            // 2. Kunci Validasi Status
+            if ($pengajuan->status !== 'diterima') {
+                \Illuminate\Support\Facades\Log::warning("⚠️ DETEKTIF PDF: Gagal cetak karena status belum 'diterima'!");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal cetak! Surat belum disahkan atau masih dalam proses.'
+                ], 400);
+            }
+
+            // 3. Proses Render URL QR Code
             $urlValidasiDosen = url('/api/validasi-dokumen/' . $pengajuan->qr_token_dosen);
             $urlValidasiKaprodi = url('/api/validasi-dokumen/' . $pengajuan->qr_token_kaprodi);
 
-            // 6. Sihir Data Menjadi PDF! (Memanggil file blade HTML)
+            // 4. Proses Kompilasi DomPDF
+            \Illuminate\Support\Facades\Log::info("⏳ DETEKTIF PDF: Mulai merender file HTML Blade ke DomPDF...");
+            
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.surat_kompen', compact('pengajuan', 'urlValidasiDosen', 'urlValidasiKaprodi'));
-
-            // Atur ukuran kertas
             $pdf->setPaper('a4', 'portrait');
 
-            // 7. Format nama file unduhan biar rapi pakai nama user
-            $namaMhs = str_replace(' ', '_', $pengajuan->mahasiswa->user->nama);
+            $namaMhs = isset($pengajuan->mahasiswa->user->nama) ? str_replace(' ', '_', $pengajuan->mahasiswa->user->nama) : 'mahasiswa';
             $namaFile = 'Surat_Bebas_Kompen_' . $namaMhs . '.pdf';
 
-            // Kirim file ke Flutter/Browser untuk di-download
+            \Illuminate\Support\Facades\Log::info("🎉 DETEKTIF PDF: RENDER SUKSES! Mengirim file {$namaFile} ke Flutter...");
+
             return $pdf->download($namaFile);
+
         } catch (\Exception $e) {
+            // 🚀 LOG 3: JIKA CRASH, TULIS PENYEBAB ASLINYA DI SINI JINK!
+            \Illuminate\Support\Facades\Log::error("💥 DETEKTIF PDF CRASH SECARA INTERNAL! Alasan: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Line Eror: " . $e->getLine() . " di file " . $e->getFile());
+            
             return response()->json(['success' => false, 'message' => 'Gagal mencetak PDF: ' . $e->getMessage()], 500);
         }
     }
