@@ -11,8 +11,26 @@ import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import 'daftar_pelamar_page.dart';
 
-class DosenAssignment extends StatelessWidget {
+class DosenAssignment extends StatefulWidget {
   const DosenAssignment({super.key});
+
+  @override
+  State<DosenAssignment> createState() => _DosenAssignmentState();
+}
+
+class _DosenAssignmentState extends State<DosenAssignment> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Ambil token dari AuthController
+      final token = context.read<AuthController>().token;
+      if (token != null) {
+        // Panggil fungsi get data dengan menyertakan token
+        context.read<DosenController>().fetchAssignments(token);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
