@@ -11,8 +11,25 @@ import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import 'kaprodi_daftar_pelamar_page.dart';
 
-class KaprodiAssignment extends StatelessWidget {
+class KaprodiAssignment extends StatefulWidget {
   const KaprodiAssignment({super.key});
+
+  @override
+  State<KaprodiAssignment> createState() => _KaprodiAssignmentState();
+}
+
+class _KaprodiAssignmentState extends State<KaprodiAssignment> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fetch data assignment milik kaprodi saat halaman pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<AuthController>().token;
+      if (token != null) {
+        context.read<KaprodiController>().fetchAssignmentsKaprodi(token);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,44 +64,51 @@ class KaprodiAssignment extends StatelessWidget {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                // Menggunakan sinkronisasi profil terpusat dari AuthController
-                onRefresh: () =>
-                    context.read<AuthController>().refreshProfile(),
-                child: list.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(
-                            height: 400,
-                            child: EmptyState(
-                              icon: Icons.add_task_rounded,
-                              title: 'Belum ada assignment',
-                              subtitle:
-                                  'Tap tombol + untuk membuat assignment baru',
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: list.length,
-                        itemBuilder: (ctx, i) {
-                          final a = list[i];
-                          return _AssignmentKaprodiCard(
-                            assignment: a,
-                            onEdit: () => _showForm(context, assignment: a),
-                            onDelete: () => _confirmDelete(context, a.id),
-                            onLihatPelamar: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    KaprodiDaftarPelamarPage(assignment: a),
+                // Menggunakan sinkronisasi profil terpusat & refresh data sekaligus
+                onRefresh: () async {
+                  await context.read<AuthController>().refreshProfile();
+                  final token = context.read<AuthController>().token ?? '';
+                  if (token.isNotEmpty) {
+                    await context.read<KaprodiController>().fetchAssignmentsKaprodi(token);
+                  }
+                },
+                child: kaprodiController.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : list.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(
+                                height: 400,
+                                child: EmptyState(
+                                  icon: Icons.add_task_rounded,
+                                  title: 'Belum ada assignment',
+                                  subtitle:
+                                      'Tap tombol + untuk membuat assignment baru',
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: list.length,
+                            itemBuilder: (ctx, i) {
+                              final a = list[i];
+                              return _AssignmentKaprodiCard(
+                                assignment: a,
+                                onEdit: () => _showForm(context, assignment: a),
+                                onDelete: () => _confirmDelete(context, a.id),
+                                onLihatPelamar: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        KaprodiDaftarPelamarPage(assignment: a),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
               ),
             ),
           ],

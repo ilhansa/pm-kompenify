@@ -123,9 +123,24 @@ class _AssignmentListScreenState extends State<AssignmentListScreen> {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                onRefresh: () =>
-                    context.read<AuthController>().refreshProfile(),
-                child: assignments.isEmpty
+                onRefresh: () async {
+                  // 1. Ambil token yang sedang aktif
+                  final currentToken = context.read<AuthController>().token ?? '';
+                  
+                  if (currentToken.isNotEmpty) {
+                    // 2. Minta data assignment terbaru ke server
+                    await context.read<MahasiswaController>().fetchAssignmentMahasiswa(currentToken);
+                    // 3. Minta data riwayat pengajuan terbaru
+                    await context.read<MahasiswaController>().fetchPengajuanSaya(currentToken);
+                  }
+                  // 4. Refresh profil (seperti saldo jam kompen)
+                  await context.read<AuthController>().refreshProfile();
+                },
+                
+                // Tambahkan efek loading biar user tahu aplikasi lagi mikir
+                child: mhsController.isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : assignments.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
