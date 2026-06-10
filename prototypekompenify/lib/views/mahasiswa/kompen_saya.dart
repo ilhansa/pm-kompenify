@@ -1,12 +1,11 @@
 // lib/views/mahasiswa/kompen_saya.dart
-// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru dan fitur Cetak E-PDF Bebas Kompen
+// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru dan fitur Cetak E-PDF Bebas Kompen Bawa Token Keamanan
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart'; // ✅ Ditambahkan untuk membuka dokumen PDF di browser
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mahasiswa_controller.dart';
 import '../../models/pengajuan_model.dart';
@@ -16,6 +15,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // ✅ DIUBAH MENJADI STATEFULWIDGET
 class KompenSayaScreen extends StatefulWidget {
@@ -173,9 +173,7 @@ class _KompenApiCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: p.statusColor.withValues(
-                  alpha: 0.12,
-                ), // ✅ Modernized Linter
+                color: p.statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -198,22 +196,84 @@ class KompenDetailScreen extends StatelessWidget {
   final PengajuanModel pengajuan;
   const KompenDetailScreen({super.key, required this.pengajuan});
 
-  // 🚀 FUNGSI LINK GENERATOR DOWNLOAD PDF DINAMIS SAKTI (SUDAH SINKRON DENGAN API LARAVEL)
-  // 🚀 KODE BARBAR BYPASS: Langsung tabrak panggil browser tanpa lewat canLaunchUrl lorr!
-  Future<void> _launchPdfDownload(BuildContext context, String id) async {
+  // 🚀 FUNGSI PREMIUM: AUTO-SAVE LANGSUNG KE FOLDER DOWNLOAD HP USER!
+  Future<void> _downloadPdfWithToken(
+    BuildContext context,
+    String id,
+    String token,
+  ) async {
     final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
-    final pdfUrl = Uri.parse(
-      '$baseUrl/mahasiswa/pengajuan-kompen/$id/cetak-surat',
-    );
+    final pdfUrl = '$baseUrl/mahasiswa/pengajuan-kompen/$id/cetak-surat';
 
     try {
-      // Langsung panggil tanpa if-checking, biar sistem Android internal yang mengurus jalurnya
-      await launchUrl(pdfUrl, mode: LaunchMode.externalApplication);
+      // 1. Minta izin akses Storage HP secara runtime
+      if (Platform.isAndroid) {
+        final status = await Permission.manageExternalStorage.request();
+        if (!status.isGranted) {
+          // Fallback kalau pakai permission storage biasa (Android lama)
+          await Permission.storage.request();
+        }
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⏳ Sedang mengunduh PDF ke folder Download...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // 2. Siapkan HttpClient
+      final client = HttpClient();
+      final request = await client.getUrl(Uri.parse(pdfUrl));
+
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers.set(HttpHeaders.acceptHeader, 'application/pdf');
+      request.headers.set('X-Requested-With', 'XMLHttpRequest');
+
+      final response = await request.close();
+
+      if (response.statusCode == 200) {
+        final bytes = await consolidateHttpClientResponseBytes(response);
+
+        // 🚀 3. INI KUNCINYA LORR! SET PATH TARGET KE FOLDER DOWNLOAD PUBLIK HP
+        Directory? downloadDir;
+        if (Platform.isAndroid) {
+          downloadDir = Directory('/storage/emulated/0/Download');
+          // Jika folder download ga gaib tapi ga kebaca, pakai path_provider bawaan
+          if (!await downloadDir.exists()) {
+            downloadDir = await getExternalStorageDirectory();
+          }
+        } else {
+          downloadDir = await getDownloadsDirectory();
+        }
+
+        // 4. Daftarkan nama file fisik PDF-nya lorr
+        final file = File('${downloadDir!.path}/Surat_Bebas_Kompen_$id.pdf');
+
+        // 5. Tulis byte datanya langsung ke folder Download HP!
+        await file.writeAsBytes(bytes);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ PDF Sukses Diunduh!\nCek di File Manager -> Folder Download lorr!',
+              ),
+              backgroundColor: AppTheme.accentGreen,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        throw 'Akses ditolak Laravel! Status: ${response.statusCode}';
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal mengunduh PDF berkas: $e'),
+            content: Text('❌ Gagal mengunduh PDF: $e'),
             backgroundColor: AppTheme.accentRed,
           ),
         );
@@ -259,13 +319,11 @@ class KompenDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: p.statusColor.withValues(
-                    alpha: 0.1,
-                  ), // ✅ Modernized Linter
+                  color: p.statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: p.statusColor.withValues(alpha: 0.4),
-                  ), // ✅ Modernized Linter
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -347,12 +405,13 @@ class KompenDetailScreen extends StatelessWidget {
                 const SizedBox(height: 16),
               ],
 
-              // 🚀 TOMBOL PREMIUM KONDISIONAL: CETAK SURAT BEBAS KOMPEN (HANYA MUNCUL BILA STATUS DITERIMA/LUNAS)
+              // 🚀 TOMBOL SAKTI: CETAK SURAT BEBAS KOMPEN (SUDAH DIKONEKSIKAN DENGAN TOKEN KELOMPOK ILSA)
               if (isLunasTotal) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _launchPdfDownload(context, p.id),
+                    onPressed: () =>
+                        _downloadPdfWithToken(context, p.id, token),
                     icon: const Icon(
                       Icons.picture_as_pdf_rounded,
                       size: 18,
@@ -411,9 +470,7 @@ class KompenDetailScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(
-                      alpha: 0.05,
-                    ), // ✅ Modernized Linter
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
@@ -801,9 +858,7 @@ class _BuktiFotoSection extends StatelessWidget {
                             width: 20,
                             height: 20,
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(
-                                alpha: 0.65,
-                              ), // ✅ Modernized Linter
+                              color: Colors.black.withValues(alpha: 0.65),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -1013,9 +1068,7 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
                     decoration: BoxDecoration(
                       color: i == _current
                           ? Colors.white
-                          : Colors.white.withValues(
-                              alpha: 0.35,
-                            ), // ✅ Modernized Linter
+                          : Colors.white.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
