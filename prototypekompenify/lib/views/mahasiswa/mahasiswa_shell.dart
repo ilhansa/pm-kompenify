@@ -22,23 +22,30 @@ class MahasiswaShell extends StatefulWidget {
 class _MahasiswaShellState extends State<MahasiswaShell> {
   int _idx = 0;
 
-  // Daftar susunan halaman pada bilah navigasi utama
-  final _screens = const [
-    MahasiswaDashboard(),
-    AssignmentListScreen(),
-    KompenSayaScreen(),
-    NotifikasiScreen(),
-    ProfilScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     // Mengakses data real-time jumlah notifikasi masuk via AuthController
     final authController = context.watch<AuthController>();
     final unread = authController.unreadCount;
 
+    // 🚀 SAKTI: Kita taruh daftar screen di sini agar bisa memberikan fungsi ganti indeks secara real-time jink!
+    final screens = [
+      const MahasiswaDashboard(),
+      const AssignmentListScreen(),
+      const KompenSayaScreen(),
+      const NotifikasiScreen(),
+      // DI SINI KITA LEMPAR LOGIKA PINDAH SHELL TAB NYA LORR!
+      ProfilScreen(
+        onNavigateToTab: (indexBaru) {
+          setState(() {
+            _idx = indexBaru;
+          });
+        },
+      ),
+    ];
+
     return Scaffold(
-      body: _screens[_idx],
+      body: screens[_idx], // Ambil list dinamis dari variabel di atas lorr
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.bgCard,

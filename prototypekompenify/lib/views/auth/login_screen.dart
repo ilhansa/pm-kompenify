@@ -395,7 +395,6 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             const SizedBox(height: 10),
-                            _demoRow('Admin', 'ADMIN001'),
                             _demoRow('Mahasiswa', '244107060072'),
                             _demoRow('Dosen', 'NIP001'),
                             _demoRow('Kaprodi', 'KAPRODI01'),

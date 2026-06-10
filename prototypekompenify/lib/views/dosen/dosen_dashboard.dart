@@ -103,38 +103,40 @@ class DosenDashboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Panel Grid Informasi Ringkasan (StatCard)
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.5,
+                // ─── PANEL RINGKASAN DATA (STRUKTUR ANTI OVERFLOW) ───
+
+                // 🚀 1. StatCard "Assignment Dibuat" Membentang Penuh Lebar Layar
+                SizedBox(
+                  width: double.infinity,
+                  child: StatCard(
+                    label: 'Assignment Telah Dibuat',
+                    value: '${myAssignments.length}',
+                    icon: Icons.assignment_rounded,
+                    color: AppTheme.accent,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 🚀 2. Dua StatCard Sisanya Berjejer Rapi di Bawah Tanpa Batasan Tinggi Paksaan
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    StatCard(
-                      label: 'Assignment Dibuat',
-                      value: '${myAssignments.length}',
-                      icon: Icons.assignment_rounded,
-                      color: AppTheme.accent,
+                    Expanded(
+                      child: StatCard(
+                        label: 'Menunggu Verifikasi',
+                        value: '$menunggu',
+                        icon: Icons.pending_actions_rounded,
+                        color: AppTheme.accentOrange,
+                      ),
                     ),
-                    StatCard(
-                      label: 'Menunggu Verifikasi',
-                      value: '$menunggu',
-                      icon: Icons.pending_actions_rounded,
-                      color: AppTheme.accentOrange,
-                    ),
-                    StatCard(
-                      label: 'Total Pengajuan',
-                      value: '${myVerifikasi.length}',
-                      icon: Icons.people_rounded,
-                      color: AppTheme.primaryLight,
-                    ),
-                    StatCard(
-                      label: 'Sudah Diverifikasi',
-                      value: '$selesai',
-                      icon: Icons.verified_rounded,
-                      color: AppTheme.accentGreen,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: StatCard(
+                        label: 'Sudah Diverifikasi',
+                        value: '$selesai',
+                        icon: Icons.verified_rounded,
+                        color: AppTheme.accentGreen,
+                      ),
                     ),
                   ],
                 ),
@@ -148,73 +150,74 @@ class DosenDashboard extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 // Mengurai langsung susunan kartu penugasan
-                ...myAssignments
-                    .take(3)
-                    .map(
-                      (a) => Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.cardGradient,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.divider),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    a.judul,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${a.jamKompen} jam kompen',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: a.status == 'aktif'
-                                    ? AppTheme.accentGreen.withOpacity(0.15)
-                                    : AppTheme.textMuted.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                a.status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: a.status == 'aktif'
-                                      ? AppTheme.accentGreen
-                                      : AppTheme.textMuted,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                 if (myAssignments.isEmpty)
                   const EmptyState(
                     icon: Icons.assignment_outlined,
                     title: 'Belum ada assignment',
                     subtitle: 'Buat assignment di tab Assignment',
-                  ),
+                  )
+                else
+                  ...myAssignments
+                      .take(3)
+                      .map(
+                        (a) => Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.cardGradient,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.divider),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      a.judul,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${a.jamKompen} jam kompen',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: a.status == 'aktif'
+                                      ? AppTheme.accentGreen.withOpacity(0.15)
+                                      : AppTheme.textMuted.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  a.status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: a.status == 'aktif'
+                                        ? AppTheme.accentGreen
+                                        : AppTheme.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
               ],
             ),
           ),
