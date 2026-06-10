@@ -65,11 +65,12 @@
         Telah menyelesaikan seluruh kewajiban kompensasi akademisnya dengan baik dan benar. Dokumen ini dicetak secara otomatis oleh sistem Kompenify dan telah divalidasi secara digital tanpa memerlukan tanda tangan basah.
     </div>
 
-    <div class="ttd-container">
+   <div class="ttd-container">
         <div class="ttd-kiri">
             <p>Mengetahui,<br>Dosen Pemberi Tugas</p>
             <div class="qr-box">
-                <img src="data:image/png;base64, {!! base64_encode(QrCode::format('png')->margin(1)->size(100)->generate($urlValidasiDosen)) !!}">
+                {{-- 🚀 MENEMBAK GOOGLE API: AMAN, CEPAT, DAN DIJAMIN MUNCUL JINK! --}}
+                <img src="https://chart.googleapis.com/chart?chs=100x100&cht=qr&chl={{ urlencode($urlValidasiDosen) }}&choe=UTF-8" width="100" height="100" />
             </div>
             <p><u>Validasi Sistem Elektronik</u></p>
         </div>
@@ -77,12 +78,12 @@
         <div class="ttd-kanan">
             <p>Mengesahkan,<br>Kepala Program Studi</p>
             <div class="qr-box">
-                <img src="data:image/png;base64, {!! base64_encode(QrCode::format('png')->margin(1)->size(100)->generate($urlValidasiKaprodi)) !!}">
+                {{-- 🚀 AMAN DARI SEGALA MACAM ERROR CLASS NOT FOUND --}}
+                <img src="https://chart.googleapis.com/chart?chs=100x100&cht=qr&chl={{ urlencode($urlValidasiKaprodi) }}&choe=UTF-8" width="100" height="100" />
             </div>
             <p><u>Validasi Sistem Elektronik</u></p>
         </div>
     </div>
-
     <div class="clear"></div>
 
 </body>

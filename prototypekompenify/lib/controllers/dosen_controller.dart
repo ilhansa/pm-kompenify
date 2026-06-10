@@ -26,7 +26,11 @@ class DosenController extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   // 1. Mengambil Daftar Tugas Kompen yang Pernah Dibuat Oleh Dosen
-  Future<void> fetchAssignments(String token) async {
+// Tambahkan parameter forceRefresh dengan nilai default false
+  Future<void> fetchAssignments(String token, {bool forceRefresh = false}) async {
+    // SATPAM: Jika data sudah ada di memori DAN tidak sedang dipaksa refresh, STOP di sini!
+    if (_assignmentsApi.isNotEmpty && !forceRefresh) return;
+
     _isLoading = true;
     notifyListeners();
     try {
