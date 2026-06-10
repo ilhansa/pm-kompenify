@@ -46,3 +46,6 @@ app.*.map.json
 
 # env
 .env
+
+/bootstrap/cache/packages.php
+/bootstrap/cache/services.php
