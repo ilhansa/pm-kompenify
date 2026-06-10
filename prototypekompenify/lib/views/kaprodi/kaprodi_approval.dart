@@ -10,8 +10,31 @@ import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 
-class KaprodiApproval extends StatelessWidget {
+// DIUBAH MENJASI STATEFULWIDGET AGAR BISA MEMASANG INITSTATE UNTUK FETCH API LARAVEL LORR
+class KaprodiApproval extends StatefulWidget {
   const KaprodiApproval({super.key});
+
+  @override
+  State<KaprodiApproval> createState() => _KaprodiApprovalState();
+}
+
+class _KaprodiApprovalState extends State<KaprodiApproval> {
+  @override
+  void initState() {
+    super.initState();
+    // AMBIL DATA ANTREAN SURAT DARI BACKEND BEGITU HALAMAN DIBUKA
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _muatUlangDataKaprodi();
+    });
+  }
+
+  // Fungsi sakti untuk memicu fetch data antrean verifikasi Kaprodi
+  void _muatUlangDataKaprodi() {
+    final token = context.read<AuthController>().token ?? '';
+    context.read<KaprodiController>().fetchPengajuanMenungguVerifikasiKaprodi(
+      token,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,16 +42,20 @@ class KaprodiApproval extends StatelessWidget {
     final kaprodiController = context.watch<KaprodiController>();
     final antreanKaprodi = kaprodiController.pengajuanMenungguVerifikasiKaprodi;
 
-    // 🚀 FILTER SAKTI SULTAN (MEJA UTAMA PIMPINAN):
-    // Kaprodi HANYA melihat berkas mahasiswa dari dosen manapun yang sudah lolos TTD Dosen Pembimbing
+    // FILTER SAKTI SULTAN (SUPER AMAN & KEBAL HURUF BESAR/KECIL DARI LARAVEL):
     final pending = antreanKaprodi
-        .where((p) => p.status == 'menunggu_ttd_kaprodi')
+        .where(
+          (p) =>
+              p.status.toString().toLowerCase().trim() ==
+              'menunggu_ttd_kaprodi',
+        )
         .toList();
 
-    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi ('diterima' di database API)
-    final history = antreanKaprodi
-        .where((p) => p.status == 'selesai' || p.status == 'diterima')
-        .toList();
+    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi
+    final history = antreanKaprodi.where((p) {
+      final s = p.status.toString().toLowerCase().trim();
+      return s == 'selesai' || s == 'diterima';
+    }).toList();
 
     return GradientBackground(
       child: SafeArea(
@@ -57,9 +84,10 @@ class KaprodiApproval extends StatelessWidget {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                // Menggunakan fungsi penyegaran profil induk dari AuthController
-                onRefresh: () =>
-                    context.read<AuthController>().refreshProfile(),
+                onRefresh: () async {
+                  await context.read<AuthController>().refreshProfile();
+                  _muatUlangDataKaprodi();
+                },
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -73,7 +101,12 @@ class KaprodiApproval extends StatelessWidget {
                         ),
                       )
                     else
-                      ...pending.map((p) => _ApprovalCard(pengajuan: p)),
+                      ...pending.map(
+                        (p) => _ApprovalCard(
+                          pengajuan: p,
+                          onSelesaiAksi: _muatUlangDataKaprodi,
+                        ),
+                      ),
 
                     if (history.isNotEmpty) ...[
                       const SizedBox(height: 20),
@@ -101,7 +134,9 @@ class KaprodiApproval extends StatelessWidget {
 // ─── ✨ DESIGN CARD PREMIUM MEJA E-TTD PIMPINAN ✨ ───────────────────────────
 class _ApprovalCard extends StatelessWidget {
   final PengajuanModel pengajuan;
-  const _ApprovalCard({required this.pengajuan});
+  final VoidCallback onSelesaiAksi;
+
+  const _ApprovalCard({required this.pengajuan, required this.onSelesaiAksi});
 
   @override
   Widget build(BuildContext context) {
@@ -131,9 +166,7 @@ class _ApprovalCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(
-                    0xFF00B4D8,
-                  ).withOpacity(0.1), // Biru Segar Kaprodi
+                  backgroundColor: const Color(0xFF00B4D8).withOpacity(0.1),
                   child: Text(
                     inisial,
                     style: const TextStyle(
@@ -207,61 +240,34 @@ class _ApprovalCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showTolakDialog(context, p),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: AppTheme.accentRed,
-                    ),
-                    label: const Text(
-                      'Tolak Berkas',
-                      style: TextStyle(
-                        color: AppTheme.accentRed,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.accentRed),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+
+            // 🚀 TOMBOL SAKTI: Tombol Tolak Dihapus Total & Tombol Sahkan Membentang Penuh 1 Halaman Jorr!
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showTerimaDialog(context, p),
+                icon: const Icon(
+                  Icons.verified_user_outlined,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Sahkan Berkas & Tanda Tangan (E-TTD)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showTerimaDialog(context, p),
-                    icon: const Icon(
-                      Icons.verified_user_outlined,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      'Sahkan (E-TTD)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B4D8), // Biru Mantap
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00B4D8),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  elevation: 0,
                 ),
-              ],
+              ),
             ),
           ],
         ),
@@ -286,7 +292,7 @@ class _ApprovalCard extends StatelessWidget {
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin membubuhkan E-TTD Kaprodi pada berkas milik ${p.mahasiswaNama}? Langkah ini akan melunaskan kewajiban kompen mahasiswa dan merilis berkas cetak PDF.',
+          'Apakah Anda yakin ingin membubuhkan E-TTD Kaprodi pada berkas milik ${p.mahasiswaNama}? Langkah ini akan melunaskan kewajiban kompen mahasiswa secara permanen.',
         ),
         actions: [
           TextButton(
@@ -299,14 +305,12 @@ class _ApprovalCard extends StatelessWidget {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              // ✅ Nembak verifikasiPengajuan bawa status diterima & role kaprodi lewat AuthController
+              final token = context.read<AuthController>().token ?? '';
+
+              // Menembak fungsi berikanTandaTanganKaprodi dari KaprodiController bawaan tim kelompokmu lorr!
               final result = await context
-                  .read<AuthController>()
-                  .verifikasiPengajuan(
-                    id: p.id,
-                    status: 'diterima',
-                    role: 'kaprodi',
-                  );
+                  .read<KaprodiController>()
+                  .berikanTandaTanganKaprodi(p.id, token);
 
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -323,72 +327,12 @@ class _ApprovalCard extends StatelessWidget {
                   ),
                 );
                 if (result['success'] == true) {
-                  context.read<AuthController>().refreshProfile();
+                  onSelesaiAksi(); // Picu panggil ulang antrean lorr!
                 }
               }
             },
             child: const Text(
               'Sahkan Berkas',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTolakDialog(BuildContext context, PengajuanModel p) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Kembalikan Berkas',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        content: const Text(
-          'Yakin ingin menolak dokumen ini dan meminta mahasiswa untuk revisi pengerjaan tugasnya?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.accentRed),
-            onPressed: () async {
-              Navigator.pop(context);
-              // ✅ Nembak verifikasiPengajuan bawa status ditolak & role kaprodi lewat AuthController
-              final result = await context
-                  .read<AuthController>()
-                  .verifikasiPengajuan(
-                    id: p.id,
-                    status: 'ditolak',
-                    role: 'kaprodi',
-                  );
-
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      result['success'] == true
-                          ? 'Dokumen ditolak dan dikembalikan untuk direvisi.'
-                          : '❌ ${result['message']}',
-                    ),
-                    backgroundColor: result['success'] == true
-                        ? AppTheme.accentOrange
-                        : AppTheme.accentRed,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                if (result['success'] == true) {
-                  context.read<AuthController>().refreshProfile();
-                }
-              }
-            },
-            child: const Text(
-              'Tolak Berkas',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
