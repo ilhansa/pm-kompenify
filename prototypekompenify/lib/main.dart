@@ -11,6 +11,7 @@ import 'controllers/kaprodi_controller.dart';
 
 import 'utils/app_theme.dart';
 import 'views/auth/login_screen.dart';
+import 'views/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,7 @@ class MyApp extends StatelessWidget {
         title: 'Kompenify',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const LoginScreen(),
+        home: const SplashScreen(),
       ),
     );
   }
