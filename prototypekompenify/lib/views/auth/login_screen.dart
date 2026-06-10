@@ -23,8 +23,14 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+
+  // Variabel Animasi Background Blob
   late AnimationController _blobCtrl;
   late Animation<double> _blobAnim;
+
+  // Variabel Animasi Logo Glow
+  late AnimationController _logoGlowCtrl;
+  late Animation<double> _logoGlow;
 
   // Kode Warna Google (Versi Tipis / Pastel)
   static const Color _googleBlueThin = Color(
@@ -40,6 +46,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+
+    // Inisialisasi Animasi Blob Latar Belakang
     _blobCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -48,11 +56,22 @@ class _LoginScreenState extends State<LoginScreen>
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _blobCtrl, curve: Curves.easeInOut));
+
+    // Inisialisasi Animasi Logo Glow
+    _logoGlowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _logoGlow = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoGlowCtrl, curve: Curves.easeInOut));
   }
 
   @override
   void dispose() {
     _blobCtrl.dispose();
+    _logoGlowCtrl.dispose();
     _nimCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
@@ -67,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _error = 'NIM/NIP dan password tidak boleh kosong.');
       return;
     }
-
     setState(() {
       _loading = true;
       _error = null;
@@ -81,10 +99,8 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (errorResult == null) {
       final user = dataSvc.currentUser;
-
       if (user != null) {
         final roleName = user.role.name.toLowerCase();
-
         if (roleName == 'mhs' || roleName == 'mahasiswa') {
           Navigator.pushReplacement(
             context,
@@ -151,26 +167,59 @@ class _LoginScreenState extends State<LoginScreen>
                     children: [
                       const SizedBox(height: 50),
 
-                      // LOGO BRANDING
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.school_rounded,
-                            size: 32,
-                            color: _googleBlueAccent,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Kompenify',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.5,
-                              color: Colors.grey[800],
+                      // ✅ PERBAIKAN: LOGO ASLI KOMPENIFY DARI ASSETS (DENGAN EFEK GLOW)
+                      AnimatedBuilder(
+                        animation: _logoGlow,
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: _logoGlow.value,
+                            child: child,
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.asset(
+                                  'assets/images/logo.png', // ⚠️ Pastikan filenya sudah ditaruh di folder assets dan pubspec.yaml kamu ya!
+                                  fit: BoxFit.cover,
+                                  // errorBuilder: (context, error, stackTrace) {
+                                  //   // Fallback widget jika file gambar belum di-setup di project
+                                  //   return const Icon(
+                                  //     Icons.school_rounded,
+                                  //     size: 32,
+                                  //     color: _googleBlueAccent,
+                                  //   );
+                                  // },
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'Kompenify',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.5,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -179,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       const SizedBox(height: 40),
 
-                      // CARD UTAMA FLAT
+                      // CARD UTAMA FLAT Putih Bersih
                       Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
@@ -221,14 +270,12 @@ class _LoginScreenState extends State<LoginScreen>
                               decoration: const InputDecoration(
                                 labelText: 'NIM atau NIP',
                                 labelStyle: TextStyle(color: Colors.black54),
-                                // Saat di-klik: Berubah menjadi Biru Google agar user tahu kolom sedang aktif
                                 focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
                                     color: _googleBlueAccent,
                                     width: 2,
                                   ),
                                 ),
-                                // Saat diam: Menggunakan abu-abu sangat tipis agar menyatu dengan background putih
                                 enabledBorder: OutlineInputBorder(
                                   borderSide: BorderSide(color: Colors.black12),
                                 ),
@@ -240,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 20),
 
-                            // ─── INPUT PASSWORD (DOMINAN PUTIH CLEAN) ───
+                            // Input Password
                             TextFormField(
                               controller: _passCtrl,
                               obscureText: _obscure,
@@ -314,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                             const SizedBox(height: 32),
 
-                            // ✅ DIKEMBALIKAN KE PRIMARYBUTTON KELOMPOKMU (DENGAN TEMA WARNA GOOGLE)
+                            // PRIMARY BUTTON KELOMPOK
                             PrimaryButton(
                               label: 'Berikutnya',
                               onTap: _login,
@@ -399,6 +446,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BLOB WIDGET
+// ─────────────────────────────────────────────────────────────────────────────
 class _Blob extends StatelessWidget {
   final double size;
   final Color color;
