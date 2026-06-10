@@ -12,7 +12,10 @@ import '../shared/common_widgets.dart';
 import '../auth/login_screen.dart';
 
 class ProfilScreen extends StatelessWidget {
-  const ProfilScreen({super.key});
+  // 🚀 TAMBAHAN: Menerima callback opsional dari Shell jika ingin pindah tab navigasi lorr
+  final Function(int)? onNavigateToTab;
+
+  const ProfilScreen({super.key, this.onNavigateToTab});
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +38,11 @@ class ProfilScreen extends StatelessWidget {
 
     // ─── AMBIL DATA SESUAI MODEL ASLI BAWAAN KELOMPOKMU ───
 
-    // -- Data Mahasiswa
+    // -- Data Mahasiswa (Dinamis 100% dari API lorr)
     final listPengajuanMhs = isMahasiswa ? mhsController.pengajuanSaya : [];
     final totalPengajuanMhs = listPengajuanMhs.length;
+    final displayTotalWajib = user.mahasiswa?.totalJamKompen ?? 0;
+    final displaySisaJam = user.mahasiswa?.sisaJamKompen ?? 0;
 
     // -- Data Dosen
     final totalAssignment = isDosen ? dosenController.assignmentsApi.length : 0;
@@ -66,8 +71,23 @@ class ProfilScreen extends StatelessWidget {
         child: RefreshIndicator(
           color: AppTheme.primary,
           backgroundColor: AppTheme.bgCard,
-          // 📝 PANGGIL FUNGSI REFRESH SECARA DINAMIS TERPUSAT VIA AUTH CONTROLLER
-          onRefresh: () => context.read<AuthController>().refreshProfile(),
+          // 📝 REFRESH SELEKTIF: Mengamankan sistem agar fetch data tidak salah alamat role
+          onRefresh: () async {
+            await context.read<AuthController>().refreshProfile();
+
+            // Jika yang login ternyata akun mahasiswa, tarik juga riwayat kompennya lorr
+            if (isMahasiswa) {
+              await context.read<MahasiswaController>().fetchPengajuanSaya(
+                authController.token ?? '',
+              );
+            }
+            // Jika dosen yang login, refresh data tugas milik dosennya lorr
+            else if (isDosen) {
+              await context.read<DosenController>().fetchAssignments(
+                authController.token ?? '',
+              );
+            }
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
@@ -153,7 +173,7 @@ class ProfilScreen extends StatelessWidget {
 
                 // ─── KARTU STATISTIK KONDISIONAL BERDASARKAN ROLE ───
                 if (isMahasiswa) ...[
-                  _buildMahasiswaRekap(listPengajuanMhs),
+                  _buildMahasiswaRekap(displayTotalWajib, displaySisaJam),
                 ] else if (isDosen) ...[
                   _buildDosenRekap(totalAssignment, totalVerifikasi),
                   const SizedBox(height: 14),
@@ -172,17 +192,36 @@ class ProfilScreen extends StatelessWidget {
                     Icons.assignment_outlined,
                     'Riwayat Kompen Saya',
                     subtitle: '$totalPengajuanMhs pengajuan',
+                    onTap: () {
+                      if (onNavigateToTab != null) {
+                        onNavigateToTab!(2); // Pindah ke tab Kompen Saya lorr
+                      }
+                    },
                   ),
                 ] else if (isDosen) ...[
                   _menuItem(
                     Icons.assignment_turned_in_outlined,
                     'Daftar Assignment Saya',
                     subtitle: '$totalAssignment tugas aktif di sistem',
+                    onTap: () {
+                      if (onNavigateToTab != null) {
+                        onNavigateToTab!(
+                          1,
+                        ); // Pindah ke tab Assignment Dosen lorr
+                      }
+                    },
                   ),
                   _menuItem(
                     Icons.pending_actions_rounded,
                     'Menunggu Verifikasi',
                     subtitle: '$totalVerifikasi berkas kompen masuk',
+                    onTap: () {
+                      if (onNavigateToTab != null) {
+                        onNavigateToTab!(
+                          2,
+                        ); // Pindah ke tab Verifikasi Dosen lorr
+                      }
+                    },
                   ),
                 ] else if (isKaprodi) ...[
                   _menuItem(
@@ -196,9 +235,159 @@ class ProfilScreen extends StatelessWidget {
                   Icons.notifications_outlined,
                   'Notifikasi',
                   subtitle: '${authController.unreadCount} belum dibaca',
+                  onTap: () {
+                    if (onNavigateToTab != null) {
+                      onNavigateToTab!(
+                        3,
+                      ); // Pindah ke tab Notifikasi global lorr
+                    }
+                  },
                 ),
-                _menuItem(Icons.help_outline_rounded, 'Bantuan & FAQ Sistem'),
-                _menuItem(Icons.info_outline_rounded, 'Tentang Kompenify V1.0'),
+
+                // 🚀 BUNGKUSAN SAKTI: Hanya muncul di Mahasiswa, area Dosen otomatis bersih lorr![cite: 1]
+                if (isMahasiswa) ...[
+                  _menuItem(
+                    Icons.assignment_ind_outlined,
+                    'Daftar Assignment Aktif',
+                    subtitle: 'Lihat tugas kompen dari dosen',
+                    onTap: () {
+                      if (onNavigateToTab != null) {
+                        onNavigateToTab!(
+                          1,
+                        ); // Meluncur ke tab Assignment Mahasiswa lorr
+                      }
+                    },
+                  ),
+                ],
+
+                _menuItem(
+                  Icons.info_outline_rounded,
+                  'Tentang Kompenify V1.0',
+                  subtitle: 'Informasi sistem dan aplikasi mobile',
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: AppTheme.bgCard,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                      ),
+                      builder: (context) {
+                        return Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    color: AppTheme.accent,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Tentang Kompenify',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Kompenify adalah aplikasi mobile pencatatan dan elektronisasi kompensasi mahasiswa yang terintegrasi langsung dengan sistem utama kampus lorr.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppTheme.divider),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Versi Aplikasi',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                    Text(
+                                      'v1.0.0 (Production-Ready)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppTheme.divider),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Pengembang',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Tim PBL Kelompok 4',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text(
+                                    'Tutup',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 20),
 
@@ -240,23 +429,13 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  // --- Widget Bantuan Asli Kelompok Sultan ---
+  // --- Widget Bantuan Dinamis Kelompok Sultan ---
 
-  Widget _buildMahasiswaRekap(List<dynamic> pengajuanList) {
-    // Menghitung jam selesai dari penugasan yang statusnya lunas/selesai/diterima
-    int displaySelesai = 0;
-    for (var p in pengajuanList) {
-      if (p.status == 'selesai' || p.status == 'diterima') {
-        displaySelesai += (p.assignmentJamKompen as int? ?? 0);
-      }
-    }
-
-    // Default data kompen institusi (bisa disesuaikan atau di-hardcode sesuai kebutuhan PBL)
-    final displayTotalWajib = 50;
-    final displaySisaJam = (displayTotalWajib - displaySelesai) < 0
-        ? 0
-        : (displayTotalWajib - displaySelesai);
-    final sudahLunas = displaySisaJam <= 0;
+  Widget _buildMahasiswaRekap(int totalWajib, int sisaJam) {
+    final displaySelesai = (totalWajib - sisaJam) < 0
+        ? totalWajib
+        : (totalWajib - sisaJam);
+    final sudahLunas = sisaJam <= 0;
 
     return Row(
       children: [
@@ -268,13 +447,11 @@ class ProfilScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Expanded(
-          child: _statBox('$displayTotalWajib', 'Jam Wajib', AppTheme.accent),
-        ),
+        Expanded(child: _statBox('$totalWajib', 'Jam Wajib', AppTheme.accent)),
         const SizedBox(width: 10),
         Expanded(
           child: _statBox(
-            '$displaySisaJam',
+            '$sisaJam',
             'Jam Sisa',
             sudahLunas ? AppTheme.accentGreen : AppTheme.accentOrange,
           ),
@@ -399,7 +576,12 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
-  Widget _menuItem(IconData icon, String title, {String? subtitle}) {
+  Widget _menuItem(
+    IconData icon,
+    String title, {
+    String? subtitle,
+    VoidCallback? onTap,
+  }) {
     return Builder(
       builder: (ctx) => Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -427,7 +609,7 @@ class ProfilScreen extends StatelessWidget {
             Icons.chevron_right_rounded,
             color: AppTheme.textMuted,
           ),
-          onTap: () {},
+          onTap: onTap,
         ),
       ),
     );

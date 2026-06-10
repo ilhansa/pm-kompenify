@@ -1,5 +1,5 @@
 // lib/views/mahasiswa/mahasiswa_dashboard.dart
-// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru
+// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru & StatefulWidget
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,8 +10,28 @@ import '../shared/common_widgets.dart';
 import '../../models/models.dart';
 import 'kompen_saya.dart';
 
-class MahasiswaDashboard extends StatelessWidget {
+class MahasiswaDashboard extends StatefulWidget {
   const MahasiswaDashboard({super.key});
+
+  @override
+  State<MahasiswaDashboard> createState() => _MahasiswaDashboardState();
+}
+
+class _MahasiswaDashboardState extends State<MahasiswaDashboard> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // 🚀 AMBIL TOKEN SAH DARI AUTH CONTROLLER KELOMPOKMU LORR
+        final token = context.read<AuthController>().token ?? '';
+
+        // OPER TOKEN NYA KE SINI BIAR KONTROLER MAHASISWA TIDAK MARAH
+        context.read<MahasiswaController>().fetchPengajuanSaya(token);
+        context.read<AuthController>().refreshProfile();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,17 +45,25 @@ class MahasiswaDashboard extends StatelessWidget {
     // Mendapatkan data statis rekap melalui data backward compatibility di AuthController
     final rekap = authController.getRekap(user.id.toString());
 
-    // Mengambil riwayat pengajuan aktif dari MahasiswaController
-    final pengajuan = mhsController.pengajuanSaya;
-    final recent = pengajuan.take(3).toList();
+    // Mengambil riwayat pengajuan mentah dari MahasiswaController
+    final allPengajuan = mhsController.pengajuanSaya;
+
+    // 🚀 FILTER SAKTI: Buang status 'diterima' (Selesai/Lunas) agar dashboard bersih jink!
+    final pengajuanAktif = allPengajuan
+        .where((p) => p.status != 'diterima')
+        .toList();
+    final recent = pengajuanAktif.take(3).toList();
 
     return GradientBackground(
       child: SafeArea(
         child: RefreshIndicator(
           color: AppTheme.primary,
           backgroundColor: AppTheme.bgCard,
-          // Sinkronisasi data utama profil dan notifikasi menggunakan AuthController
-          onRefresh: () => context.read<AuthController>().refreshProfile(),
+          onRefresh: () async {
+            final token = context.read<AuthController>().token ?? '';
+            await context.read<AuthController>().refreshProfile();
+            await context.read<MahasiswaController>().fetchPengajuanSaya(token);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
@@ -129,7 +157,7 @@ class MahasiswaDashboard extends StatelessWidget {
                     Expanded(
                       child: StatCard(
                         label: 'Total Pengajuan',
-                        value: '${pengajuan.length}',
+                        value: '${allPengajuan.length}',
                         icon: Icons.assignment_outlined,
                         color: AppTheme.accent,
                       ),
@@ -138,9 +166,9 @@ class MahasiswaDashboard extends StatelessWidget {
                     Expanded(
                       child: StatCard(
                         label: 'Selesai (Lunas)',
-                        // Evaluasi string status 'diterima' dari API Laravel real
+                        // Tetap menghitung status diterima untuk keperluan statistik counter lorr
                         value:
-                            '${pengajuan.where((p) => p.status == 'diterima').length}',
+                            '${allPengajuan.where((p) => p.status == 'diterima').length}',
                         icon: Icons.check_circle_outline,
                         color: AppTheme.accentGreen,
                       ),
@@ -158,8 +186,9 @@ class MahasiswaDashboard extends StatelessWidget {
                 if (recent.isEmpty)
                   const EmptyState(
                     icon: Icons.assignment_outlined,
-                    title: 'Belum ada kompen',
-                    subtitle: 'Pilih assignment untuk mulai mengajukan kompen',
+                    title: 'Belum ada kompen berjalan',
+                    subtitle:
+                        'Pilih assignment untuk mulai mengajukan kompen lorr!',
                   )
                 else
                   ...recent
@@ -223,6 +252,7 @@ class MahasiswaDashboard extends StatelessWidget {
                                       color: p.statusColor,
                                       fontWeight: FontWeight.w600,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ],
@@ -230,7 +260,7 @@ class MahasiswaDashboard extends StatelessWidget {
                           ),
                         ),
                       )
-                      .toList(), // Konversi map iterasi menjadi susunan list widget fisik
+                      .toList(),
               ],
             ),
           ),

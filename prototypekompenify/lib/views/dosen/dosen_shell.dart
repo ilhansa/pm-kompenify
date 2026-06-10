@@ -22,23 +22,29 @@ class DosenShell extends StatefulWidget {
 class __DosenShellState extends State<DosenShell> {
   int _idx = 0;
 
-  // Daftar susunan halaman utama Dosen (Halaman TTD dinonaktifkan sesuai kesepakatan kelompok)
-  final _screens = const [
-    DosenDashboard(),
-    DosenAssignment(),
-    DosenVerifikasi(), // Proses verifikasi & E-TTD disatukan di halaman ini
-    NotifikasiScreen(),
-    ProfilScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     // Mengambil state jumlah notifikasi belum dibaca secara real-time dari AuthController
     final authController = context.watch<AuthController>();
     final unread = authController.unreadCount;
 
+    // 🚀 SAKTI: Ubah screens jadi dinamis agar fungsi onNavigateToTab milik profil bisa didengar jink!
+    final screens = [
+      const DosenDashboard(),
+      const DosenAssignment(),
+      const DosenVerifikasi(), // Proses verifikasi & E-TTD disatukan di halaman ini
+      const NotifikasiScreen(),
+      ProfilScreen(
+        onNavigateToTab: (indexBaru) {
+          setState(() {
+            _idx = indexBaru;
+          });
+        },
+      ),
+    ];
+
     return Scaffold(
-      body: _screens[_idx],
+      body: screens[_idx], // 👈 Mengambil index dinamis dari variabel lorr
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.bgCard,
