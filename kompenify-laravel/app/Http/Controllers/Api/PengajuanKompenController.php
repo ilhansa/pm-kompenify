@@ -692,4 +692,29 @@ class PengajuanKompenController extends Controller
             return response()->json(['success' => false, 'message' => 'Gagal mencetak PDF: ' . $e->getMessage()], 500);
         }
     }
+
+    // BUAT AI ANJING INI NAMANYA INDEX BUAT LIAT ASSIGNMENT YG UDAH MAHASISWA SELESAIIN
+    public function indexRiwayatSelesai(Request $request)
+{
+    $user = $request->user();
+
+    // 1. Ambil data mahasiswa
+    $mahasiswa = Mahasiswa::where('user_id', $user->id)->first();
+    
+    // 2. Ambil pengajuan yang sudah 'diterima'
+    // Menggunakan relasi 'assignment' biar mahasiswa tahu dia selesai tugas apa saja
+    $riwayat = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
+        ->where('status', 'diterima') // Filter cuma yang sudah LUNAS
+        ->with(['assignment']) 
+        ->orderBy('updated_at', 'desc')
+        ->get();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Daftar tugas yang sudah diselesaikan',
+        'data' => $riwayat
+    ], 200);
+}
+
+
 }
