@@ -37,6 +37,9 @@ Route::prefix('mahasiswa')->group(function () {
     // PUT | Tandai tugas selesai oleh mahasiswa
     Route::put('/pengajuan-kompen/{id}/selesai', [PengajuanKompenController::class, 'tandaiSelesai']);
 
-    // GET: Cetak Surat Bebas Kompen (Hanya Mahasiswa)
+    // GET | INDEX ASSIGNMENT YG UDAH DISELESAIIN MAHASISWA
+    Route::get('/pengajuan-kompen/riwayat-selesai', [PengajuanKompenController::class, 'indexRiwayatSelesai']);
+
+    // GET | TEMPAT BUAT MAHASISWA AMBIL DATA UNTUK DI CETAK SURATNYA
     Route::get('/pengajuan-kompen/{id}/cetak-surat', [PengajuanKompenController::class, 'cetakSurat']);
 });
