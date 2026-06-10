@@ -8,6 +8,8 @@ use App\Models\PengajuanKompen;
 use App\Models\Mahasiswa;
 use App\Models\Notifikasi;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Log;
 
 class PengajuanKompenController extends Controller
 {
@@ -638,15 +640,13 @@ class PengajuanKompenController extends Controller
         }
     }
 
-// ==========================================
     // GET: CETAK PDF + DETEKTIF LOG EROR SAKTI
-    // ==========================================
     public function cetakSurat(Request $request, $id)
     {
         // 🚀 LOG 1: Deteksi apakah request dari Flutter Sultan beneran masuk ke fungsi ini
         \Illuminate\Support\Facades\Log::info("=== DETEKTIF PDF: ADA TEMBAKAN MASUK ===");
         \Illuminate\Support\Facades\Log::info("ID Pengajuan yang dicari: " . $id);
-        
+
         try {
             // 1. Tarik data dari database
             $pengajuan = PengajuanKompen::with(['mahasiswa.user', 'assignment'])->find($id);
@@ -668,14 +668,41 @@ class PengajuanKompenController extends Controller
                 ], 400);
             }
 
-            // 3. Proses Render URL QR Code
-            $urlValidasiDosen = url('/api/validasi-dokumen/' . $pengajuan->qr_token_dosen);
-            $urlValidasiKaprodi = url('/api/validasi-dokumen/' . $pengajuan->qr_token_kaprodi);
+            // 3. Proses Render URL QR Code (LANGSUNG PAKAI BASE_URL DARI ENV KAMU, BOS!)
+            // Ambil BASE_URL dari .env (Contoh isinya: http://192.168.1.5:8000/api)
+            $baseUrl = rtrim(config('app.url'), '/');
+
+            // Menggabungkan BASE_URL + rute agar link QR-nya utuh dan bisa dibaca browser HP saat discan
+            $urlValidasiDosen = $baseUrl . '/api/validasi-dokumen/' . $pengajuan->qr_token_dosen;
+            // $urlValidasiDosen = 'https://google.com';
+            $urlValidasiKaprodi = $baseUrl . '/api/validasi-dokumen/' . $pengajuan->qr_token_kaprodi;
+
+            Log::info('APP_URL = ' . config('app.url'));
+            Log::info('URL DOSEN = ' . $urlValidasiDosen);
+            Log::info('URL KAPRODI = ' . $urlValidasiKaprodi);
+            // GENERATE LOKAL: Merender QR Code langsung dari mesin PHP Laragon tanpa internet!
+            $qrDosenBase64 = base64_encode(
+                QrCode::format('png')
+                    ->size(150)
+                    ->margin(1)
+                    ->generate($urlValidasiDosen)
+            );
+
+            $qrKaprodiBase64 = base64_encode(
+                QrCode::format('png')
+                    ->size(150)
+                    ->margin(1)
+                    ->generate($urlValidasiKaprodi)
+            );
 
             // 4. Proses Kompilasi DomPDF
             \Illuminate\Support\Facades\Log::info("⏳ DETEKTIF PDF: Mulai merender file HTML Blade ke DomPDF...");
-            
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.surat_kompen', compact('pengajuan', 'urlValidasiDosen', 'urlValidasiKaprodi'));
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.surat_kompen', compact('pengajuan', 'qrDosenBase64', 'qrKaprodiBase64'))
+                ->setOption([
+                    'isHtml5ParserEnabled' => true
+                ]);
+
             $pdf->setPaper('a4', 'portrait');
 
             $namaMhs = isset($pengajuan->mahasiswa->user->nama) ? str_replace(' ', '_', $pengajuan->mahasiswa->user->nama) : 'mahasiswa';
@@ -684,38 +711,35 @@ class PengajuanKompenController extends Controller
             \Illuminate\Support\Facades\Log::info("🎉 DETEKTIF PDF: RENDER SUKSES! Mengirim file {$namaFile} ke Flutter...");
 
             return $pdf->download($namaFile);
-
         } catch (\Exception $e) {
             // 🚀 LOG 3: JIKA CRASH, TULIS PENYEBAB ASLINYA DI SINI JINK!
             \Illuminate\Support\Facades\Log::error("💥 DETEKTIF PDF CRASH SECARA INTERNAL! Alasan: " . $e->getMessage());
             \Illuminate\Support\Facades\Log::error("Line Eror: " . $e->getLine() . " di file " . $e->getFile());
-            
+
             return response()->json(['success' => false, 'message' => 'Gagal mencetak PDF: ' . $e->getMessage()], 500);
         }
     }
 
     // BUAT AI ANJING INI NAMANYA INDEX BUAT LIAT ASSIGNMENT YG UDAH MAHASISWA SELESAIIN
     public function indexRiwayatSelesai(Request $request)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
 
-    // 1. Ambil data mahasiswa
-    $mahasiswa = Mahasiswa::where('user_id', $user->id)->first();
-    
-    // 2. Ambil pengajuan yang sudah 'diterima'
-    // Menggunakan relasi 'assignment' biar mahasiswa tahu dia selesai tugas apa saja
-    $riwayat = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
-        ->where('status', 'diterima') // Filter cuma yang sudah LUNAS
-        ->with(['assignment']) 
-        ->orderBy('updated_at', 'desc')
-        ->get();
+        // 1. Ambil data mahasiswa
+        $mahasiswa = Mahasiswa::where('user_id', $user->id)->first();
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Daftar tugas yang sudah diselesaikan',
-        'data' => $riwayat
-    ], 200);
-}
+        // 2. Ambil pengajuan yang sudah 'diterima'
+        // Menggunakan relasi 'assignment' biar mahasiswa tahu dia selesai tugas apa saja
+        $riwayat = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
+            ->where('status', 'diterima') // Filter cuma yang sudah LUNAS
+            ->with(['assignment'])
+            ->orderBy('updated_at', 'desc')
+            ->get();
 
-
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar tugas yang sudah diselesaikan',
+            'data' => $riwayat
+        ], 200);
+    }
 }
