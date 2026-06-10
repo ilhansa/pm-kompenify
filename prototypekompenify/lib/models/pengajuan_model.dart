@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+class BuktiFotoItem {
+  final String id;
+  final String url;
+  BuktiFotoItem({required this.id, required this.url});
+}
+
 class PengajuanModel {
   final String id;
   final String mahasiswaId;
@@ -13,9 +19,8 @@ class PengajuanModel {
   final String? assignmentJudul;
   final int? assignmentJamKompen;
   final String? assignmentDosenId;
-  final List<String> buktiFotos;
+  final List<BuktiFotoItem> buktiFotos;
 
-  // 🚀 SAKTI: Tambahkan dua variabel penampung hash QR dari Laravel
   final String? qrTokenDosen;
   final String? qrTokenKaprodi;
 
@@ -31,40 +36,37 @@ class PengajuanModel {
     this.assignmentJamKompen,
     this.assignmentDosenId,
     this.buktiFotos = const [],
-    this.qrTokenDosen, // Masukkan ke constructor
-    this.qrTokenKaprodi, // Masukkan ke constructor
+    this.qrTokenDosen,
+    this.qrTokenKaprodi,
   });
 
   factory PengajuanModel.fromJson(Map<String, dynamic> json) {
     final mhs = json['mahasiswa'] as Map<String, dynamic>?;
     final asg = json['assignment'] as Map<String, dynamic>?;
 
-    // Sinkronisasi URL Foto Bukti dengan Link Ngrok aktif secara dinamis
-    List<String> fotos = [];
+    List<BuktiFotoItem> fotos = [];
     if (json['bukti'] != null && json['bukti'] is List) {
       final envUrl =
           dotenv.env['BASE_URL']?.replaceAll('/api', '') ??
           'http://10.0.2.2:8000';
       final baseStorageUrl = '$envUrl/storage/';
 
-      fotos = (json['bukti'] as List)
-          .map((b) {
-            if (b['foto_url'] != null && b['foto_url'].toString().isNotEmpty) {
-              return b['foto_url']
-                  .toString()
-                  .replaceAll('http://localhost:8000', envUrl)
-                  .replaceAll('http://localhost', envUrl)
-                  .replaceAll('http://127.0.0.1:8000', envUrl)
-                  .replaceAll('http://127.0.0.1', envUrl)
-                  .replaceAll('http://10.0.2.2:8000', envUrl);
-            } else if (b['file_path'] != null &&
-                b['file_path'].toString().isNotEmpty) {
-              return '$baseStorageUrl${b['file_path']}';
-            }
-            return '';
-          })
-          .where((u) => u.isNotEmpty)
-          .toList();
+      fotos = (json['bukti'] as List).map((b) {
+        String url = '';
+        if (b['foto_url'] != null && b['foto_url'].toString().isNotEmpty) {
+          url = b['foto_url']
+              .toString()
+              .replaceAll('http://localhost:8000', envUrl)
+              .replaceAll('http://localhost', envUrl)
+              .replaceAll('http://127.0.0.1:8000', envUrl)
+              .replaceAll('http://127.0.0.1', envUrl)
+              .replaceAll('http://10.0.2.2:8000', envUrl);
+        } else if (b['file_path'] != null &&
+            b['file_path'].toString().isNotEmpty) {
+          url = '$baseStorageUrl${b['file_path']}';
+        }
+        return BuktiFotoItem(id: b['id']?.toString() ?? '', url: url);
+      }).where((b) => b.url.isNotEmpty).toList();
     }
 
     return PengajuanModel(
@@ -81,53 +83,42 @@ class PengajuanModel {
           : int.tryParse(asg?['jam_kompen']?.toString() ?? ''),
       assignmentDosenId: asg?['dosen_id']?.toString(),
       buktiFotos: fotos,
-
-      // 🚀 MAPPING BARU: Ambil data token dari response database terupdate
       qrTokenDosen: json['qr_token_dosen']?.toString(),
       qrTokenKaprodi: json['qr_token_kaprodi']?.toString(),
     );
   }
 
-  // Fallback Mapping Nama: Mengatasi variasi perubahan struktur JSON dari Backend
   static String? _getNama(Map<String, dynamic> mhs) {
     final user = mhs['user'] as Map<String, dynamic>?;
-    if (user != null && user['nama'] != null) {
-      return user['nama']?.toString();
-    }
-    if (mhs['nama'] != null) {
-      return mhs['nama']?.toString();
-    }
-    if (mhs['nama_mahasiswa'] != null) {
-      return mhs['nama_mahasiswa']?.toString();
-    }
+    if (user != null && user['nama'] != null) return user['nama']?.toString();
+    if (mhs['nama'] != null) return mhs['nama']?.toString();
+    if (mhs['nama_mahasiswa'] != null) return mhs['nama_mahasiswa']?.toString();
     return null;
   }
 
-  // 🚀 MEROMBAK WARNA BADGE STATUS BIAR COCOK SAMA TAHAPAN WORKFLOW BARU
   Color get statusColor {
     switch (status) {
       case 'pending':
-        return const Color(0xFFFFB020); // Oranye (Butuh Persetujuan)
+        return const Color(0xFFFFB020);
       case 'menunggu_ttd_dosen':
-        return const Color(0xFF6C63FF); // Ungu (Proses Dosen)
+        return const Color(0xFF6C63FF);
       case 'menunggu_ttd_kaprodi':
-        return const Color(0xFF00B4D8); // Biru Muda (Proses Kaprodi)
+        return const Color(0xFF00B4D8);
       case 'diterima':
-        return const Color(0xFF4CAF8D); // Hijau (Selesai Semuanya)
+        return const Color(0xFF4CAF8D);
       case 'ditolak':
-        return const Color(0xFFE74C6B); // Merah
+        return const Color(0xFFE74C6B);
       default:
         return const Color(0xFFFFB020);
     }
   }
 
-  // 🚀 MEROMBAK LABEL TEKS DI UI SESUAI ALUR BERJENJANG KAMU
   String get statusLabel {
     switch (status) {
       case 'pending':
         return 'Pending (War Slot)';
       case 'sedang dikerjakan':
-        return 'Sedang Dikerjakan'; // 👈 BIAR INI YANG MUNCUL GAGAH!
+        return 'Sedang Dikerjakan';
       case 'menunggu_ttd_dosen':
         return 'Menunggu ACC Dosen';
       case 'menunggu_ttd_kaprodi':
@@ -137,7 +128,7 @@ class PengajuanModel {
       case 'ditolak':
         return 'Ditolak / Revisi';
       default:
-        return status; // Kalau bingung, tampilin string aslinya dari DB
+        return status;
     }
   }
 }

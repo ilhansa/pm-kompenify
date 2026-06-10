@@ -258,7 +258,7 @@ class _VerifikasiCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.network(
-                        p.buktiFotos[idx],
+                        p.buktiFotos[idx].url,
                         fit: BoxFit.cover,
                         width: 140,
                         headers: const {'ngrok-skip-browser-warning': 'true'},

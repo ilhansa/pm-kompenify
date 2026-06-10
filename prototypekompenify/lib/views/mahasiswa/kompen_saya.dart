@@ -1,6 +1,3 @@
-// lib/views/mahasiswa/kompen_saya.dart
-// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru dan fitur Cetak E-PDF Bebas Kompen Bawa Token Keamanan
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,7 +14,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// ✅ DIUBAH MENJADI STATEFULWIDGET
 class KompenSayaScreen extends StatefulWidget {
   const KompenSayaScreen({super.key});
 
@@ -26,11 +22,9 @@ class KompenSayaScreen extends StatefulWidget {
 }
 
 class _KompenSayaScreenState extends State<KompenSayaScreen> {
-  // ✅ INITSTATE SAKTI DITAMBAHKAN DI SINI
   @override
   void initState() {
     super.initState();
-    // Memaksa jalankan fungsi tarik data dari Laravel setiap kali halaman dimuat
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final token = context.read<AuthController>().token ?? '';
       context.read<MahasiswaController>().fetchPengajuanSaya(token);
@@ -39,7 +33,6 @@ class _KompenSayaScreenState extends State<KompenSayaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Membaca data pengajuan milik mahasiswa dari MahasiswaController
     final mhsController = context.watch<MahasiswaController>();
     final list = mhsController.pengajuanSaya;
 
@@ -70,14 +63,10 @@ class _KompenSayaScreenState extends State<KompenSayaScreen> {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                // Menggunakan sinkronisasi profil dari AuthController
                 onRefresh: () async {
                   await context.read<AuthController>().refreshProfile();
-                  // Opsional: Tarik ulang data kompen saat di-swipe ke bawah
                   final token = context.read<AuthController>().token ?? '';
-                  await context.read<MahasiswaController>().fetchPengajuanSaya(
-                    token,
-                  );
+                  await context.read<MahasiswaController>().fetchPengajuanSaya(token);
                 },
                 child: list.isEmpty
                     ? ListView(
@@ -88,8 +77,7 @@ class _KompenSayaScreenState extends State<KompenSayaScreen> {
                             child: EmptyState(
                               icon: Icons.task_alt_outlined,
                               title: 'Belum ada kompen',
-                              subtitle:
-                                  'Pilih assignment di tab Assignment untuk mulai',
+                              subtitle: 'Pilih assignment di tab Assignment untuk mulai',
                             ),
                           ),
                         ],
@@ -103,8 +91,7 @@ class _KompenSayaScreenState extends State<KompenSayaScreen> {
                           onTap: () => Navigator.push(
                             ctx,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  KompenDetailScreen(pengajuan: list[i]),
+                              builder: (_) => KompenDetailScreen(pengajuan: list[i]),
                             ),
                           ),
                         ),
@@ -144,28 +131,19 @@ class _KompenApiCard extends StatelessWidget {
                 children: [
                   Text(
                     p.assignmentJudul ?? '-',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${p.assignmentJamKompen ?? 0} jam kompen',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormat(
-                      'dd MMM yyyy',
-                    ).format(DateTime.tryParse(p.createdAt) ?? DateTime.now()),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textMuted,
+                    DateFormat('dd MMM yyyy').format(
+                      DateTime.tryParse(p.createdAt) ?? DateTime.now(),
                     ),
+                    style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                   ),
                 ],
               ),
@@ -196,23 +174,14 @@ class KompenDetailScreen extends StatelessWidget {
   final PengajuanModel pengajuan;
   const KompenDetailScreen({super.key, required this.pengajuan});
 
-  // 🚀 FUNGSI PREMIUM: AUTO-SAVE LANGSUNG KE FOLDER DOWNLOAD HP USER!
-  Future<void> _downloadPdfWithToken(
-    BuildContext context,
-    String id,
-    String token,
-  ) async {
+  Future<void> _downloadPdfWithToken(BuildContext context, String id, String token) async {
     final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
     final pdfUrl = '$baseUrl/mahasiswa/pengajuan-kompen/$id/cetak-surat';
 
     try {
-      // 1. Minta izin akses Storage HP secara runtime
       if (Platform.isAndroid) {
         final status = await Permission.manageExternalStorage.request();
-        if (!status.isGranted) {
-          // Fallback kalau pakai permission storage biasa (Android lama)
-          await Permission.storage.request();
-        }
+        if (!status.isGranted) await Permission.storage.request();
       }
 
       if (context.mounted) {
@@ -224,10 +193,8 @@ class KompenDetailScreen extends StatelessWidget {
         );
       }
 
-      // 2. Siapkan HttpClient
       final client = HttpClient();
       final request = await client.getUrl(Uri.parse(pdfUrl));
-
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       request.headers.set(HttpHeaders.acceptHeader, 'application/pdf');
       request.headers.set('X-Requested-With', 'XMLHttpRequest');
@@ -237,11 +204,9 @@ class KompenDetailScreen extends StatelessWidget {
       if (response.statusCode == 200) {
         final bytes = await consolidateHttpClientResponseBytes(response);
 
-        // 🚀 3. INI KUNCINYA LORR! SET PATH TARGET KE FOLDER DOWNLOAD PUBLIK HP
         Directory? downloadDir;
         if (Platform.isAndroid) {
           downloadDir = Directory('/storage/emulated/0/Download');
-          // Jika folder download ga gaib tapi ga kebaca, pakai path_provider bawaan
           if (!await downloadDir.exists()) {
             downloadDir = await getExternalStorageDirectory();
           }
@@ -249,18 +214,13 @@ class KompenDetailScreen extends StatelessWidget {
           downloadDir = await getDownloadsDirectory();
         }
 
-        // 4. Daftarkan nama file fisik PDF-nya lorr
         final file = File('${downloadDir!.path}/Surat_Bebas_Kompen_$id.pdf');
-
-        // 5. Tulis byte datanya langsung ke folder Download HP!
         await file.writeAsBytes(bytes);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                '✅ PDF Sukses Diunduh!\nCek di File Manager -> Folder Download lorr!',
-              ),
+              content: const Text('✅ PDF Sukses Diunduh!\nCek di File Manager -> Folder Download!'),
               backgroundColor: AppTheme.accentGreen,
               duration: const Duration(seconds: 5),
             ),
@@ -283,10 +243,8 @@ class KompenDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sinkronisasi data detail dari state internal MahasiswaController
     final mhsController = context.watch<MahasiswaController>();
     final authController = context.watch<AuthController>();
-
     final token = authController.token ?? '';
     final p = mhsController.pengajuanSaya.firstWhere(
       (x) => x.id == pengajuan.id,
@@ -297,8 +255,7 @@ class KompenDetailScreen extends StatelessWidget {
     final bool isSedangDikerjakan = p.status == 'sedang dikerjakan';
     final bool isMenungguTTDDosen = p.status == 'menunggu_ttd_dosen';
     final bool isMenungguTTDKaprodi = p.status == 'menunggu_ttd_kaprodi';
-    final bool isLunasTotal =
-        p.statusLabel == 'Selesai / Lunas' || p.status == 'diterima';
+    final bool isLunasTotal = p.statusLabel == 'Selesai / Lunas' || p.status == 'diterima';
 
     return Scaffold(
       appBar: AppBar(
@@ -321,9 +278,7 @@ class KompenDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: p.statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: p.statusColor.withValues(alpha: 0.4),
-                  ),
+                  border: Border.all(color: p.statusColor.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -367,22 +322,11 @@ class KompenDetailScreen extends StatelessWidget {
                   children: [
                     const Text(
                       'Informasi Kompen',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                     ),
                     const SizedBox(height: 12),
-                    InfoRow(
-                      icon: Icons.assignment_outlined,
-                      label: 'Assignment',
-                      value: p.assignmentJudul ?? '-',
-                    ),
-                    InfoRow(
-                      icon: Icons.schedule_outlined,
-                      label: 'Jam Kompen',
-                      value: '${p.assignmentJamKompen ?? 0} jam',
-                    ),
+                    InfoRow(icon: Icons.assignment_outlined, label: 'Assignment', value: p.assignmentJudul ?? '-'),
+                    InfoRow(icon: Icons.schedule_outlined, label: 'Jam Kompen', value: '${p.assignmentJamKompen ?? 0} jam'),
                     InfoRow(
                       icon: Icons.calendar_today_outlined,
                       label: 'Tanggal Pengajuan',
@@ -390,11 +334,7 @@ class KompenDetailScreen extends StatelessWidget {
                         DateTime.tryParse(p.createdAt) ?? DateTime.now(),
                       ),
                     ),
-                    InfoRow(
-                      icon: Icons.info_outline,
-                      label: 'Status',
-                      value: p.statusLabel,
-                    ),
+                    InfoRow(icon: Icons.info_outline, label: 'Status', value: p.statusLabel),
                   ],
                 ),
               ),
@@ -405,31 +345,20 @@ class KompenDetailScreen extends StatelessWidget {
                 const SizedBox(height: 16),
               ],
 
-              // 🚀 TOMBOL SAKTI: CETAK SURAT BEBAS KOMPEN (SUDAH DIKONEKSIKAN DENGAN TOKEN KELOMPOK ILSA)
               if (isLunasTotal) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _downloadPdfWithToken(context, p.id, token),
-                    icon: const Icon(
-                      Icons.picture_as_pdf_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                    onPressed: () => _downloadPdfWithToken(context, p.id, token),
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Colors.white),
                     label: const Text(
                       'Cetak Surat Bebas Kompen (PDF)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 3,
                     ),
                   ),
@@ -475,19 +404,12 @@ class KompenDetailScreen extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.hourglass_empty_rounded,
-                        color: AppTheme.accentOrange,
-                        size: 18,
-                      ),
+                      const Icon(Icons.hourglass_empty_rounded, color: AppTheme.accentOrange, size: 18),
                       const SizedBox(width: 10),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'Tugas berhasil dikirim. Menunggu proses penandatanganan dan pengesahan digital.',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
+                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                         ),
                       ),
                     ],
@@ -501,14 +423,8 @@ class KompenDetailScreen extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () => _batalkan(context, token, p),
-                    icon: const Icon(
-                      Icons.cancel_outlined,
-                      color: AppTheme.accentRed,
-                    ),
-                    label: const Text(
-                      'Batalkan Pengajuan',
-                      style: TextStyle(color: AppTheme.accentRed),
-                    ),
+                    icon: const Icon(Icons.cancel_outlined, color: AppTheme.accentRed),
+                    label: const Text('Batalkan Pengajuan', style: TextStyle(color: AppTheme.accentRed)),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                       side: const BorderSide(color: AppTheme.accentRed),
@@ -525,77 +441,47 @@ class KompenDetailScreen extends StatelessWidget {
 
   IconData _statusIcon(String s) {
     switch (s) {
-      case 'sedang dikerjakan':
-        return Icons.build_circle_rounded;
-      case 'menunggu_ttd_dosen':
-        return Icons.hourglass_top_rounded;
-      case 'menunggu_ttd_kaprodi':
-        return Icons.rate_review_rounded;
-      case 'diterima':
-        return Icons.check_circle_rounded;
-      case 'ditolak':
-        return Icons.cancel_rounded;
-      default:
-        return Icons.pending_rounded;
+      case 'sedang dikerjakan': return Icons.build_circle_rounded;
+      case 'menunggu_ttd_dosen': return Icons.hourglass_top_rounded;
+      case 'menunggu_ttd_kaprodi': return Icons.rate_review_rounded;
+      case 'diterima': return Icons.check_circle_rounded;
+      case 'ditolak': return Icons.cancel_rounded;
+      default: return Icons.pending_rounded;
     }
   }
 
   String _statusDesc(String s) {
     switch (s) {
-      case 'pending':
-        return 'Menunggu slot dikunci oleh dosen';
-      case 'sedang dikerjakan':
-        return 'Silakan kerjakan tugas, upload foto bukti, lalu klik kirim!';
-      case 'menunggu_ttd_dosen':
-        return 'Berkas tugas sudah di meja dosen untuk diperiksa dan di-TTD';
-      case 'menunggu_ttd_kaprodi':
-        return 'Dosen sudah ACC, berkas mengantre tanda tangan Ketua Program Studi';
-      case 'diterima':
-        return 'Selamat! Kompen resmi SAH, LUNAS, dan SELESAI TOTAL! 🎉';
-      case 'ditolak':
-        return 'Pendaftaran slot ditolak dosen atau tugas dikembalikan untuk revisi';
-      default:
-        return s;
+      case 'pending': return 'Menunggu slot dikunci oleh dosen';
+      case 'sedang dikerjakan': return 'Silakan kerjakan tugas, upload foto bukti, lalu klik kirim!';
+      case 'menunggu_ttd_dosen': return 'Berkas tugas sudah di meja dosen untuk diperiksa dan di-TTD';
+      case 'menunggu_ttd_kaprodi': return 'Dosen sudah ACC, berkas mengantre tanda tangan Ketua Program Studi';
+      case 'diterima': return 'Selamat! Kompen resmi SAH, LUNAS, dan SELESAI TOTAL! 🎉';
+      case 'ditolak': return 'Pendaftaran slot ditolak dosen atau tugas dikembalikan untuk revisi';
+      default: return s;
     }
   }
 
-  Future<void> _uploadBukti(
-    BuildContext context,
-    String token,
-    PengajuanModel p,
-  ) async {
+  Future<void> _uploadBukti(BuildContext context, String token, PengajuanModel p) async {
     final picker = ImagePicker();
     final picked = await picker.pickMultiImage();
     if (picked.isEmpty) return;
 
     if (picked.length > 5) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maksimal 5 foto'),
-          backgroundColor: AppTheme.accentRed,
-        ),
+        const SnackBar(content: Text('Maksimal 5 foto'), backgroundColor: AppTheme.accentRed),
       );
       return;
     }
 
     final files = picked.map((x) => File(x.path)).toList();
-    final result = await context.read<MahasiswaController>().uploadBuktiFoto(
-      token,
-      p.id,
-      files,
-    );
+    final result = await context.read<MahasiswaController>().uploadBuktiFoto(token, p.id, files);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            result['success'] == true
-                ? '✅ ${result['message']}'
-                : '❌ ${result['message']}',
-          ),
-          backgroundColor: result['success'] == true
-              ? AppTheme.accentGreen
-              : AppTheme.accentRed,
+          content: Text(result['success'] == true ? '✅ ${result['message']}' : '❌ ${result['message']}'),
+          backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
         ),
       );
     }
@@ -607,40 +493,24 @@ class KompenDetailScreen extends StatelessWidget {
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: const Text('Kirim Hasil Kerja?'),
-        content: const Text(
-          'Pastikan kamu sudah mengunggah semua bukti foto sebelum mengirimkan tugas ke dosen.',
-        ),
+        content: const Text('Pastikan kamu sudah mengunggah semua bukti foto sebelum mengirimkan tugas ke dosen.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final result = await context
-                  .read<MahasiswaController>()
-                  .tandaiSelesai(token, p.id);
-
+              final result = await context.read<MahasiswaController>().tandaiSelesai(token, p.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      result['success'] == true
-                          ? '✅ Tugas berhasil dikirim ke dosen!'
-                          : '❌ ${result['message']}',
-                    ),
-                    backgroundColor: result['success'] == true
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentRed,
+                    content: Text(result['success'] == true ? '✅ Tugas berhasil dikirim ke dosen!' : '❌ ${result['message']}'),
+                    backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
                   ),
                 );
                 if (result['success'] == true) Navigator.pop(context);
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentGreen,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
             child: const Text('Kirim Tugas'),
           ),
         ],
@@ -654,41 +524,24 @@ class KompenDetailScreen extends StatelessWidget {
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: const Text('Batalkan Kompen?'),
-        content: const Text(
-          'Pengajuan ini akan dihapus. Tindakan ini tidak bisa dibatalkan.',
-        ),
+        content: const Text('Pengajuan ini akan dihapus. Tindakan ini tidak bisa dibatalkan.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tidak'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tidak')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final result = await context
-                  .read<MahasiswaController>()
-                  .batalkanPengajuan(token, p.id);
-
+              final result = await context.read<MahasiswaController>().batalkanPengajuan(token, p.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      result['success'] == true
-                          ? '✅ Pengajuan dibatalkan'
-                          : '❌ ${result['message']}',
-                    ),
-                    backgroundColor: result['success'] == true
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentRed,
+                    content: Text(result['success'] == true ? '✅ Pengajuan dibatalkan' : '❌ ${result['message']}'),
+                    backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
                   ),
                 );
                 if (result['success'] == true) Navigator.pop(context);
               }
             },
-            child: const Text(
-              'Batalkan',
-              style: TextStyle(color: AppTheme.accentRed),
-            ),
+            child: const Text('Batalkan', style: TextStyle(color: AppTheme.accentRed)),
           ),
         ],
       ),
@@ -705,11 +558,8 @@ class _BuktiFotoSection extends StatelessWidget {
     String? domain = dotenv.env['NGROK_URL'] ?? dotenv.env['BASE_URL'];
 
     if (domain != null && domain.isNotEmpty) {
-      if (domain.endsWith('/api')) {
-        domain = domain.substring(0, domain.length - 4);
-      } else if (domain.endsWith('/api/')) {
-        domain = domain.substring(0, domain.length - 5);
-      }
+      if (domain.endsWith('/api')) domain = domain.substring(0, domain.length - 4);
+      else if (domain.endsWith('/api/')) domain = domain.substring(0, domain.length - 5);
       if (domain.endsWith('/')) domain = domain.substring(0, domain.length - 1);
       if (cleanUrl.contains('storage/')) {
         final String pathSetelahStorage = cleanUrl.split('storage/')[1];
@@ -722,7 +572,7 @@ class _BuktiFotoSection extends StatelessWidget {
     return fallbackUrl;
   }
 
-  Future<void> _hapusFoto(BuildContext context, String url) async {
+  Future<void> _hapusFoto(BuildContext context, String buktiId) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -730,16 +580,10 @@ class _BuktiFotoSection extends StatelessWidget {
         title: const Text('Hapus Foto?'),
         content: const Text('Foto ini akan dihapus dari bukti kompen kamu.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: AppTheme.accentRed),
-            ),
+            child: const Text('Hapus', style: TextStyle(color: AppTheme.accentRed)),
           ),
         ],
       ),
@@ -747,23 +591,14 @@ class _BuktiFotoSection extends StatelessWidget {
     if (confirm != true) return;
 
     final token = context.read<AuthController>().token ?? '';
-    final result = await context.read<MahasiswaController>().hapusBuktiFoto(
-      token,
-      pengajuan.id,
-      url,
-    );
+    // ✅ FIX: kirim buktiId (UUID foto), bukan pengajuanId
+    final result = await context.read<MahasiswaController>().hapusBuktiFoto(token, buktiId);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            result['success'] == true
-                ? '✅ Foto dihapus'
-                : '❌ ${result['message']}',
-          ),
-          backgroundColor: result['success'] == true
-              ? AppTheme.accentGreen
-              : AppTheme.accentRed,
+          content: Text(result['success'] == true ? '✅ Foto dihapus' : '❌ ${result['message']}'),
+          backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
         ),
       );
     }
@@ -771,7 +606,7 @@ class _BuktiFotoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buktiList = pengajuan.buktiFotos;
+    final buktiList = pengajuan.buktiFotos; // List<BuktiFotoItem>
     final bool bolehHapus = pengajuan.status == 'sedang dikerjakan';
 
     return Container(
@@ -784,23 +619,17 @@ class _BuktiFotoSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Bukti Foto',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
+          const Text('Bukti Foto', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           const SizedBox(height: 10),
           if (buktiList.isEmpty)
-            const Text(
-              'Belum ada bukti foto diupload',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-            )
+            const Text('Belum ada bukti foto diupload', style: TextStyle(color: AppTheme.textMuted, fontSize: 13))
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: buktiList.asMap().entries.map((entry) {
-                final url = entry.value;
-                final fixedUrl = _fixUrl(url);
+                final bukti = entry.value; // BuktiFotoItem
+                final fixedUrl = _fixUrl(bukti.url);
                 const ngrokHeaders = {'ngrok-skip-browser-warning': 'true'};
 
                 return Stack(
@@ -810,7 +639,7 @@ class _BuktiFotoSection extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => _FotoViewerScreen(
-                            urls: buktiList.map(_fixUrl).toList(),
+                            urls: buktiList.map((b) => _fixUrl(b.url)).toList(),
                             initialIndex: entry.key,
                           ),
                         ),
@@ -823,27 +652,19 @@ class _BuktiFotoSection extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null
+                          loadingBuilder: (_, child, progress) => progress == null
                               ? child
                               : Container(
                                   width: 80,
                                   height: 80,
                                   color: AppTheme.bgCardLight,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
+                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                                 ),
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
                             color: AppTheme.bgCardLight,
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              color: AppTheme.textMuted,
-                            ),
+                            child: const Icon(Icons.broken_image_outlined, color: AppTheme.textMuted),
                           ),
                         ),
                       ),
@@ -853,7 +674,8 @@ class _BuktiFotoSection extends StatelessWidget {
                         top: 2,
                         right: 2,
                         child: GestureDetector(
-                          onTap: () => _hapusFoto(context, url),
+                          // ✅ FIX: kirim bukti.id bukan url
+                          onTap: () => _hapusFoto(context, bukti.id),
                           child: Container(
                             width: 20,
                             height: 20,
@@ -861,11 +683,7 @@ class _BuktiFotoSection extends StatelessWidget {
                               color: Colors.black.withValues(alpha: 0.65),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.close_rounded,
-                              size: 13,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.close_rounded, size: 13, color: Colors.white),
                           ),
                         ),
                       ),
@@ -977,25 +795,14 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
                     fit: BoxFit.contain,
                     loadingBuilder: (_, child, progress) => progress == null
                         ? child
-                        : const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          ),
+                        : const Center(child: CircularProgressIndicator(color: Colors.white)),
                     errorBuilder: (_, __, ___) => const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                            color: Colors.white54,
-                            size: 48,
-                          ),
+                          Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
                           SizedBox(height: 8),
-                          Text(
-                            'Gagal memuat foto',
-                            style: TextStyle(color: Colors.white54),
-                          ),
+                          Text('Gagal memuat foto', style: TextStyle(color: Colors.white54)),
                         ],
                       ),
                     ),
@@ -1009,20 +816,11 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  _CircleIconBtn(
-                    icon: Icons.close_rounded,
-                    onTap: () => Navigator.pop(context),
-                  ),
+                  _CircleIconBtn(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
                     child: Text(
                       '${_current + 1} / ${widget.urls.length}',
                       style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -1033,21 +831,9 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
                       ? const SizedBox(
                           width: 40,
                           height: 40,
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            ),
-                          ),
+                          child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))),
                         )
-                      : _CircleIconBtn(
-                          icon: Icons.download_rounded,
-                          onTap: () => _download(widget.urls[_current]),
-                        ),
+                      : _CircleIconBtn(icon: Icons.download_rounded, onTap: () => _download(widget.urls[_current])),
                 ],
               ),
             ),
@@ -1066,9 +852,7 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
                     width: i == _current ? 18 : 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: i == _current
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.35),
+                      color: i == _current ? Colors.white : Colors.white.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -1093,10 +877,7 @@ class _CircleIconBtn extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(
-          color: Colors.black54,
-          shape: BoxShape.circle,
-        ),
+        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
         child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
