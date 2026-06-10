@@ -303,7 +303,7 @@ class KompenDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Kompen'),
-        backgroundColor: AppTheme.bgDark,
+        backgroundColor: AppTheme.bgLight,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new),
           onPressed: () => Navigator.pop(context),

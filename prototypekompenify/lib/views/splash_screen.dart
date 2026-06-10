@@ -1,8 +1,9 @@
+// lib/views/splash_screen.dart
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/app_theme.dart';
+// import '../utils/app_theme.dart';
 import 'auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
   // ─── LOGO ANIMATIONS ───
   late Animation<double> _logoScale;
   late Animation<double> _logoOpacity;
-  late Animation<double> _logoBlur;
+  // late Animation<double> _logoBlur;
 
   // ─── PULSE RING ANIMATIONS ───
   late Animation<double> _pulseScale;
@@ -40,6 +41,9 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _particleRotation;
   late Animation<double> _shimmerPosition;
 
+  // ─── GOOGLE CLEAN COLOR PALETTE (SINKRON AGAR TIDAK MATI LAMPU) ───
+  static const Color _googleBlueAccent = Color(0xFF1A73E8); // Biru Google Utama
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _setupAnimations() {
-    // Logo: scale up + fade in (0ms - 800ms)
+    // Logo: scale up + fade in (0ms - 900ms)
     _logoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -62,24 +66,26 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
       ),
     );
-    _logoBlur = Tween<double>(begin: 20.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
+    // _logoBlur = Tween<double>(begin: 20.0, end: 0.0).animate(
+    //   CurvedAnimation(
+    //     parent: _logoController,
+    //     curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    //   ),
+    // );
 
     // Pulse rings: repeating expand + fade out
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     );
-    _pulseScale = Tween<double>(begin: 1.0, end: 2.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
-    _pulseOpacity = Tween<double>(begin: 0.5, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeIn),
-    );
+    _pulseScale = Tween<double>(
+      begin: 1.0,
+      end: 2.2,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
+    _pulseOpacity = Tween<double>(
+      begin: 0.5,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeIn));
 
     // Text: slide up + letter spacing expand
     _textController = AnimationController(
@@ -92,12 +98,10 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
       ),
     );
-    _titleSlide = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
-    );
+    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
+        );
     _subtitleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _textController,
@@ -128,19 +132,15 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _startSequence() async {
-    // Logo appears
     await Future.delayed(const Duration(milliseconds: 200));
     _logoController.forward();
 
-    // Pulse starts shortly after logo
     await Future.delayed(const Duration(milliseconds: 500));
     _pulseController.repeat();
 
-    // Text appears
     await Future.delayed(const Duration(milliseconds: 600));
     _textController.forward();
 
-    // Navigate to login
     await Future.delayed(const Duration(milliseconds: 3200));
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -148,7 +148,10 @@ class _SplashScreenState extends State<SplashScreen>
           pageBuilder: (_, animation, __) => const LoginScreen(),
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeInOut,
+              ),
               child: child,
             );
           },
@@ -173,18 +176,19 @@ class _SplashScreenState extends State<SplashScreen>
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness:
+            Brightness.dark, // Bar ikon hitam biar keliatan di layar putih
       ),
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0628),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ─── BACKGROUND GRADIENT ───
+          // ─── BACKGROUND RADIAL PUTIH BERSIH ───
           _buildBackground(),
 
-          // ─── AMBIENT GLOW BLOBS ───
+          // ─── AMBIENT GLOW BLOBS (BIRU & KUNING TIPIS) ───
           _buildAmbientGlow(),
 
           // ─── MAIN CONTENT ───
@@ -192,12 +196,8 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ─── LOGO WITH PULSE & PARTICLES ───
                 _buildLogoSection(),
-
                 const SizedBox(height: 36),
-
-                // ─── APP NAME ───
                 _buildTextSection(),
               ],
             ),
@@ -210,9 +210,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─────────────────────────────────────────
-  // BACKGROUND
-  // ─────────────────────────────────────────
   Widget _buildBackground() {
     return Container(
       decoration: const BoxDecoration(
@@ -220,21 +217,17 @@ class _SplashScreenState extends State<SplashScreen>
           center: Alignment(0.0, -0.2),
           radius: 1.4,
           colors: [
-            Color(0xFF2A1070),
-            Color(0xFF0D0628),
+            Colors.white,
+            Color(0xFFF8F9FA), // Gradasi abu-abu tipis putih khas Google
           ],
         ),
       ),
     );
   }
 
-  // ─────────────────────────────────────────
-  // AMBIENT GLOW
-  // ─────────────────────────────────────────
   Widget _buildAmbientGlow() {
     return Stack(
       children: [
-        // Top-left glow
         Positioned(
           top: -80,
           left: -80,
@@ -245,14 +238,13 @@ class _SplashScreenState extends State<SplashScreen>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF7B5CE8).withOpacity(0.25),
+                  _googleBlueAccent.withOpacity(0.06),
                   Colors.transparent,
                 ],
               ),
             ),
           ),
         ),
-        // Bottom-right glow
         Positioned(
           bottom: -60,
           right: -60,
@@ -263,7 +255,9 @@ class _SplashScreenState extends State<SplashScreen>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF9491E0).withOpacity(0.2),
+                  const Color(
+                    0xFFFBBC05,
+                  ).withOpacity(0.05), // Kuning Google tipis
                   Colors.transparent,
                 ],
               ),
@@ -274,9 +268,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─────────────────────────────────────────
-  // LOGO SECTION (pulse + particles + logo)
-  // ─────────────────────────────────────────
   Widget _buildLogoSection() {
     return SizedBox(
       width: 220,
@@ -295,8 +286,9 @@ class _SplashScreenState extends State<SplashScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFF7B5CE8)
-                        .withOpacity(_pulseOpacity.value * 0.6),
+                    color: _googleBlueAccent.withOpacity(
+                      _pulseOpacity.value * 0.3,
+                    ),
                     width: 1.5,
                   ),
                 ),
@@ -304,13 +296,13 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // Second pulse ring (offset timing via delay)
+          // Second pulse ring
           AnimatedBuilder(
             animation: _pulseController,
             builder: (_, __) {
               final offset = (_pulseController.value + 0.4) % 1.0;
               final scale = 1.0 + offset * 1.2;
-              final opacity = (1.0 - offset) * 0.35;
+              final opacity = (1.0 - offset) * 0.2;
               return Transform.scale(
                 scale: scale,
                 child: Container(
@@ -319,7 +311,7 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF9491E0).withOpacity(opacity),
+                      color: _googleBlueAccent.withOpacity(opacity),
                       width: 1.0,
                     ),
                   ),
@@ -343,10 +335,10 @@ class _SplashScreenState extends State<SplashScreen>
                   height: 8,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFFC4C2F2),
+                    color: _googleBlueAccent,
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0xFF9491E0),
+                        // color: _googleBlueThin,
                         blurRadius: 8,
                         spreadRadius: 2,
                       ),
@@ -372,10 +364,12 @@ class _SplashScreenState extends State<SplashScreen>
                   height: 5,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF5754B8).withOpacity(0.8),
+                    color: const Color(
+                      0xFFFBBC05,
+                    ).withOpacity(0.7), // Kuning Google
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF5754B8).withOpacity(0.6),
+                        color: const Color(0xFFFBBC05).withOpacity(0.4),
                         blurRadius: 6,
                         spreadRadius: 1,
                       ),
@@ -386,7 +380,7 @@ class _SplashScreenState extends State<SplashScreen>
             },
           ),
 
-          // Inner glow ring (static)
+          // Inner glow ring
           Container(
             width: 152,
             height: 152,
@@ -394,7 +388,7 @@ class _SplashScreenState extends State<SplashScreen>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF7B5CE8).withOpacity(0.15),
+                  _googleBlueAccent.withOpacity(0.04),
                   Colors.transparent,
                 ],
               ),
@@ -417,7 +411,7 @@ class _SplashScreenState extends State<SplashScreen>
                         end: Alignment(_shimmerPosition.value + 1, 0),
                         colors: [
                           Colors.transparent,
-                          Colors.white.withOpacity(0.18),
+                          Colors.white.withOpacity(0.4),
                           Colors.transparent,
                         ],
                         stops: const [0.0, 0.5, 1.0],
@@ -434,9 +428,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─────────────────────────────────────────
-  // SVG LOGO (inline CustomPaint)
-  // ─────────────────────────────────────────
   Widget _buildSvgLogo() {
     return Container(
       width: 130,
@@ -445,13 +436,8 @@ class _SplashScreenState extends State<SplashScreen>
         borderRadius: BorderRadius.circular(32.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7B5CE8).withOpacity(0.5),
-            blurRadius: 30,
-            spreadRadius: 5,
-          ),
-          BoxShadow(
-            color: const Color(0xFF26235C).withOpacity(0.8),
-            blurRadius: 10,
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 20,
             spreadRadius: 2,
           ),
         ],
@@ -466,9 +452,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─────────────────────────────────────────
-  // TEXT SECTION
-  // ─────────────────────────────────────────
   Widget _buildTextSection() {
     return AnimatedBuilder(
       animation: _textController,
@@ -479,25 +462,16 @@ class _SplashScreenState extends State<SplashScreen>
             opacity: _titleOpacity.value,
             child: Column(
               children: [
-                // App Name
                 Text(
                   'Kompenify',
                   style: GoogleFonts.poppins(
                     fontSize: 36,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: const Color(0xFF202124), // Warna Hitam Google
                     letterSpacing: _titleSpacing.value,
-                    shadows: [
-                      Shadow(
-                        color: const Color(0xFF9491E0).withOpacity(0.8),
-                        blurRadius: 20,
-                      ),
-                    ],
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 // Divider accent
                 Opacity(
                   opacity: _subtitleOpacity.value,
@@ -508,12 +482,11 @@ class _SplashScreenState extends State<SplashScreen>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(1),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF7B5CE8), Color(0xFF9491E0)],
+                        colors: [_googleBlueAccent, Color(0xFF4285F4)],
                       ),
                     ),
                   ),
                 ),
-
                 // Subtitle
                 Opacity(
                   opacity: _subtitleOpacity.value,
@@ -522,7 +495,7 @@ class _SplashScreenState extends State<SplashScreen>
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
-                      color: const Color(0xFFB8A9E0),
+                      color: const Color(0xFF5F6368), // Abu-abu Gelap Google
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -535,9 +508,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─────────────────────────────────────────
-  // BOTTOM TAGLINE
-  // ─────────────────────────────────────────
   Widget _buildBottomTagline() {
     return Positioned(
       bottom: 40,
@@ -556,15 +526,18 @@ class _SplashScreenState extends State<SplashScreen>
                   return AnimatedBuilder(
                     animation: _particleController,
                     builder: (_, __) {
-                      final phase = (_particleController.value + i * 0.33) % 1.0;
-                      final opacity = (math.sin(phase * math.pi)).clamp(0.2, 1.0);
+                      final phase =
+                          (_particleController.value + i * 0.33) % 1.0;
+                      final opacity = (math.sin(
+                        phase * math.pi,
+                      )).clamp(0.2, 1.0);
                       return Container(
                         width: 6,
                         height: 6,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF7B5CE8).withOpacity(opacity),
+                          color: _googleBlueAccent.withOpacity(opacity),
                         ),
                       );
                     },
@@ -576,7 +549,7 @@ class _SplashScreenState extends State<SplashScreen>
                 'Politeknik Negeri Malang',
                 style: GoogleFonts.poppins(
                   fontSize: 11,
-                  color: const Color(0xFF7B6BAB),
+                  color: const Color(0xFF80868B), // Abu-abu Terang Google
                   letterSpacing: 0.8,
                 ),
               ),
@@ -589,8 +562,7 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOM PAINTER: Kompenify Logo
-// Replicates the SVG logo in Canvas for Flutter
+// CUSTOM PAINTER: Kompenify Logo (Disesuaikan Menjadi Aksen Google Bersih)
 // ─────────────────────────────────────────────────────────────────────────────
 class _KompenifyLogoPainter extends CustomPainter {
   @override
@@ -599,8 +571,8 @@ class _KompenifyLogoPainter extends CustomPainter {
     final scaleY = size.height / 200.0;
     canvas.scale(scaleX, scaleY);
 
-    // ── Background ──
-    final bgPaint = Paint()..color = const Color(0xFF26235C);
+    // ── Background (Putih Bersih Flat) ──
+    final bgPaint = Paint()..color = Colors.white;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         const Rect.fromLTWH(0, 0, 200, 200),
@@ -610,17 +582,15 @@ class _KompenifyLogoPainter extends CustomPainter {
     );
 
     // ── Ambient ellipses ──
-    _drawEllipse(canvas, 98, 22.5, 100, 44.5,
-        const Color(0xFFD9D9D9).withOpacity(0.05));
-    _drawEllipse(canvas, 98, 36.5, 100, 44.5,
-        const Color(0xFFD9D9D9).withOpacity(0.10));
+    _drawEllipse(canvas, 98, 22.5, 100, 44.5, const Color(0x0A202124));
+    _drawEllipse(canvas, 98, 36.5, 100, 44.5, const Color(0x0D202124));
 
-    // ── Vertical stroke (gradient lavender) ──
+    // ── Vertical stroke (Gradient Biru Google Modern) ──
     final strokePaint1 = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFD7D2FF), Color(0xFFAFA8FF)],
+        colors: [Color(0xFF6BA5FF), Color(0xFF1A73E8)],
       ).createShader(const Rect.fromLTWH(30, 27, 80, 140))
       ..strokeWidth = 25
       ..strokeCap = StrokeCap.round
@@ -630,9 +600,9 @@ class _KompenifyLogoPainter extends CustomPainter {
       ..cubicTo(38, 104, 55, 66, 93, 40);
     canvas.drawPath(path1, strokePaint1);
 
-    // ── Horizontal stroke (purple) ──
+    // ── Horizontal stroke (Aksen Kuning Tipis Google) ──
     final strokePaint2 = Paint()
-      ..color = const Color(0xFF9491E0)
+      ..color = const Color(0xFFFBBC05)
       ..strokeWidth = 17
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -642,37 +612,33 @@ class _KompenifyLogoPainter extends CustomPainter {
     canvas.drawPath(path2, strokePaint2);
 
     // ── Top circle (outer) ──
-    final circleOuterPaint = Paint()..color = const Color(0xFFC4C2F2);
+    final circleOuterPaint = Paint()..color = const Color(0xFFE8F0FE);
     canvas.drawCircle(const Offset(90, 39.5), 24.5, circleOuterPaint);
 
     // ── Top circle (inner white) ──
-    final circleInnerPaint = Paint()..color = Colors.white;
+    final circleInnerPaint = Paint()..color = const Color(0xFF1A73E8);
     canvas.drawCircle(const Offset(90, 40), 13.33, circleInnerPaint);
 
     // ── Bottom-right circle (outer) ──
-    final dotOuterPaint = Paint()..color = const Color(0xFF5754B8);
+    final dotOuterPaint = Paint()..color = const Color(0xFFFEEFC3);
     canvas.drawCircle(const Offset(150.5, 120), 15.5, dotOuterPaint);
 
     // ── Bottom-right circle (inner) ──
-    final dotInnerPaint = Paint()..color = const Color(0xFF9491E0);
+    final dotInnerPaint = Paint()..color = const Color(0xFFFBBC05);
     canvas.drawCircle(const Offset(150, 120), 8, dotInnerPaint);
-
-    // ── Top-left shimmer blob ──
-    final blobPaint = Paint()
-      ..color = const Color(0xFFF0EEFF).withOpacity(0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.5);
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(32, 22.5), width: 26, height: 19),
-      blobPaint,
-    );
   }
 
-  void _drawEllipse(Canvas canvas, double cx, double cy, double rx, double ry,
-      Color color) {
+  void _drawEllipse(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double rx,
+    double ry,
+    Color color,
+  ) {
     final paint = Paint()..color = color;
     canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(cx, cy), width: rx * 2, height: ry * 2),
+      Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),
       paint,
     );
   }
