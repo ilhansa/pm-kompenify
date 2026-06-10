@@ -18,6 +18,24 @@ class _AssignmentListScreenState extends State<AssignmentListScreen> {
   int? _filterJam;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Ambil token dari AuthController
+      final token = context.read<AuthController>().token;
+      
+      if (token != null) {
+        // Panggil 2 fungsi penting sekaligus:
+        // A. Ambil daftar tugas yang tersedia
+        context.read<MahasiswaController>().fetchAssignmentMahasiswa(token);
+        
+        // B. Ambil riwayat kompen agar tombol "Sudah Diajukan" bisa berfungsi akurat
+        context.read<MahasiswaController>().fetchPengajuanSaya(token);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Mengakses token login melalui AuthController
     final authController = context.watch<AuthController>();
