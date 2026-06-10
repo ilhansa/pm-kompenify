@@ -1,11 +1,12 @@
 // lib/views/mahasiswa/kompen_saya.dart
-// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru
+// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru dan fitur Cetak E-PDF Bebas Kompen
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart'; // ✅ Ditambahkan untuk membuka dokumen PDF di browser
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mahasiswa_controller.dart';
 import '../../models/pengajuan_model.dart';
@@ -172,6 +173,33 @@ class KompenDetailScreen extends StatelessWidget {
   final PengajuanModel pengajuan;
   const KompenDetailScreen({super.key, required this.pengajuan});
 
+  // 🚀 FUNGSI LINK GENERATOR DOWNLOAD PDF DINAMIS SAKTI (SUDAH SINKRON DENGAN API LARAVEL)
+  Future<void> _launchPdfDownload(BuildContext context, String id) async {
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+
+    // ✅ PAS & SINKRON: Menembak rute cetak surat sesuai berkas routes/api.php kelompokmu
+    final pdfUrl = Uri.parse(
+      '$baseUrl/mahasiswa/pengajuan-kompen/$id/cetak-surat',
+    );
+
+    try {
+      if (await canLaunchUrl(pdfUrl)) {
+        await launchUrl(pdfUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Tidak dapat membuka browser untuk mengunduh PDF';
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Gagal mengunduh PDF berkas: $e'),
+            backgroundColor: AppTheme.accentRed,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Sinkronisasi data detail dari state internal MahasiswaController
@@ -188,6 +216,8 @@ class KompenDetailScreen extends StatelessWidget {
     final bool isSedangDikerjakan = p.status == 'sedang dikerjakan';
     final bool isMenungguTTDDosen = p.status == 'menunggu_ttd_dosen';
     final bool isMenungguTTDKaprodi = p.status == 'menunggu_ttd_kaprodi';
+    final bool isLunasTotal =
+        p.status == 'diterima'; // status penentu berkas cetak lunas mutlak
 
     return Scaffold(
       appBar: AppBar(
@@ -289,6 +319,37 @@ class KompenDetailScreen extends StatelessWidget {
 
               if (!isPending && p.status != 'ditolak') ...[
                 _BuktiFotoSection(pengajuan: p),
+                const SizedBox(height: 16),
+              ],
+
+              // 🚀 TOMBOL PREMIUM KONDISIONAL: CETAK SURAT BEBAS KOMPEN (HANYA MUNCUL BILA STATUS DITERIMA/LUNAS)
+              if (isLunasTotal) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchPdfDownload(context, p.id),
+                    icon: const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Cetak Surat Bebas Kompen (PDF)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
 
