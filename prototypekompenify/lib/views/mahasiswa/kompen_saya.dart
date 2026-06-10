@@ -1,9 +1,13 @@
+// lib/views/mahasiswa/kompen_saya.dart
+// Sudah tersambung ke API Laravel menggunakan sistem kontroler baru
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/mahasiswa_controller.dart';
 import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
@@ -17,8 +21,9 @@ class KompenSayaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
-    final list = svc.pengajuanSaya;
+    // Membaca data pengajuan milik mahasiswa dari MahasiswaController
+    final mhsController = context.watch<MahasiswaController>();
+    final list = mhsController.pengajuanSaya;
 
     return GradientBackground(
       child: SafeArea(
@@ -47,8 +52,9 @@ class KompenSayaScreen extends StatelessWidget {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
+                // Menggunakan sinkronisasi profil dari AuthController
                 onRefresh: () =>
-                    context.read<DataService>().refreshDataMahasiswa(),
+                    context.read<AuthController>().refreshProfile(),
                 child: list.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -168,18 +174,20 @@ class KompenDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
-    final p = svc.pengajuanSaya.firstWhere(
+    // Sinkronisasi data detail dari state internal MahasiswaController
+    final mhsController = context.watch<MahasiswaController>();
+    final authController = context.watch<AuthController>();
+
+    final token = authController.token ?? '';
+    final p = mhsController.pengajuanSaya.firstWhere(
       (x) => x.id == pengajuan.id,
       orElse: () => pengajuan,
     );
 
-    // 🚀 SINKRONISASI EVALUASI BOOLEAN ENUM BARU SULTAN:
     final bool isPending = p.status == 'pending';
     final bool isSedangDikerjakan = p.status == 'sedang dikerjakan';
     final bool isMenungguTTDDosen = p.status == 'menunggu_ttd_dosen';
     final bool isMenungguTTDKaprodi = p.status == 'menunggu_ttd_kaprodi';
-    // final bool isDiterima = p.status == 'diterima';
 
     return Scaffold(
       appBar: AppBar(
@@ -279,18 +287,16 @@ class KompenDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // 🖼️ TAMPILKAN AREA FOTO UNTUK SEMUA TAHAP KECUALI PENDING / DITOLAK
               if (!isPending && p.status != 'ditolak') ...[
                 _BuktiFotoSection(pengajuan: p),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
 
-              // 🚀 GERBANG TOMBOL AKSI MAHASISWA BERDASARKAN STATUS ENUM BARU
               if (isSedangDikerjakan) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _uploadBukti(context, p),
+                    onPressed: () => _uploadBukti(context, token, p),
                     icon: const Icon(Icons.camera_alt_rounded, size: 16),
                     label: const Text('Upload Bukti Foto'),
                     style: ElevatedButton.styleFrom(
@@ -303,7 +309,7 @@ class KompenDetailScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _tandaiSelesai(context, p),
+                    onPressed: () => _tandaiSelesai(context, token, p),
                     icon: const Icon(Icons.send_rounded, size: 16),
                     label: const Text('Kirim Hasil Kerja ke Dosen'),
                     style: ElevatedButton.styleFrom(
@@ -329,7 +335,7 @@ class KompenDetailScreen extends StatelessWidget {
                         color: AppTheme.accentOrange,
                         size: 18,
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Tugas berhasil dikirim. Menunggu proses penandatanganan dan pengesahan digital.',
@@ -349,7 +355,7 @@ class KompenDetailScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () => _batalkan(context, p),
+                    onPressed: () => _batalkan(context, token, p),
                     icon: const Icon(
                       Icons.cancel_outlined,
                       color: AppTheme.accentRed,
@@ -408,10 +414,15 @@ class KompenDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _uploadBukti(BuildContext context, PengajuanModel p) async {
+  Future<void> _uploadBukti(
+    BuildContext context,
+    String token,
+    PengajuanModel p,
+  ) async {
     final picker = ImagePicker();
     final picked = await picker.pickMultiImage();
     if (picked.isEmpty) return;
+
     if (picked.length > 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -421,13 +432,15 @@ class KompenDetailScreen extends StatelessWidget {
       );
       return;
     }
+
     final files = picked.map((x) => File(x.path)).toList();
-    final result = await context.read<DataService>().uploadBuktiFoto(
+    final result = await context.read<MahasiswaController>().uploadBuktiFoto(
+      token,
       p.id,
       files,
     );
+
     if (context.mounted) {
-      await context.read<DataService>().fetchPengajuanSaya();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -443,7 +456,7 @@ class KompenDetailScreen extends StatelessWidget {
     }
   }
 
-  void _tandaiSelesai(BuildContext context, PengajuanModel p) {
+  void _tandaiSelesai(BuildContext context, String token, PengajuanModel p) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -460,10 +473,10 @@ class KompenDetailScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Nembak API tandaiSelesai kelompok lu (mengubah status ke menunggu_ttd_dosen)
-              final result = await context.read<DataService>().tandaiSelesai(
-                p.id,
-              );
+              final result = await context
+                  .read<MahasiswaController>()
+                  .tandaiSelesai(token, p.id);
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -490,7 +503,7 @@ class KompenDetailScreen extends StatelessWidget {
     );
   }
 
-  void _batalkan(BuildContext context, PengajuanModel p) {
+  void _batalkan(BuildContext context, String token, PengajuanModel p) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -508,8 +521,9 @@ class KompenDetailScreen extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(context);
               final result = await context
-                  .read<DataService>()
-                  .batalkanPengajuan(p.id);
+                  .read<MahasiswaController>()
+                  .batalkanPengajuan(token, p.id);
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -537,7 +551,6 @@ class KompenDetailScreen extends StatelessWidget {
   }
 }
 
-// ─── GANTI SELURUH class _BuktiFotoSection ─────────────────────────────────
 class _BuktiFotoSection extends StatelessWidget {
   final PengajuanModel pengajuan;
   const _BuktiFotoSection({required this.pengajuan});
@@ -547,8 +560,11 @@ class _BuktiFotoSection extends StatelessWidget {
     String? domain = dotenv.env['NGROK_URL'] ?? dotenv.env['BASE_URL'];
 
     if (domain != null && domain.isNotEmpty) {
-      if (domain.endsWith('/api')) domain = domain.substring(0, domain.length - 4);
-      else if (domain.endsWith('/api/')) domain = domain.substring(0, domain.length - 5);
+      if (domain.endsWith('/api')) {
+        domain = domain.substring(0, domain.length - 4);
+      } else if (domain.endsWith('/api/')) {
+        domain = domain.substring(0, domain.length - 5);
+      }
       if (domain.endsWith('/')) domain = domain.substring(0, domain.length - 1);
       if (cleanUrl.contains('storage/')) {
         final String pathSetelahStorage = cleanUrl.split('storage/')[1];
@@ -575,23 +591,34 @@ class _BuktiFotoSection extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus', style: TextStyle(color: AppTheme.accentRed)),
+            child: const Text(
+              'Hapus',
+              style: TextStyle(color: AppTheme.accentRed),
+            ),
           ),
         ],
       ),
     );
     if (confirm != true) return;
 
-    final result = await context.read<DataService>().hapusBuktiFoto(pengajuan.id, url);
+    final token = context.read<AuthController>().token ?? '';
+    final result = await context.read<MahasiswaController>().hapusBuktiFoto(
+      token,
+      pengajuan.id,
+      url,
+    );
+
     if (context.mounted) {
-      await context.read<DataService>().fetchPengajuanSaya();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result['success'] == true ? '✅ Foto dihapus' : '❌ ${result['message']}',
+            result['success'] == true
+                ? '✅ Foto dihapus'
+                : '❌ ${result['message']}',
           ),
-          backgroundColor:
-              result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
+          backgroundColor: result['success'] == true
+              ? AppTheme.accentGreen
+              : AppTheme.accentRed,
         ),
       );
     }
@@ -600,9 +627,7 @@ class _BuktiFotoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buktiList = pengajuan.buktiFotos;
-    // Status: boleh hapus hanya saat sedang dikerjakan
     final bool bolehHapus = pengajuan.status == 'sedang dikerjakan';
-    debugPrint('🖼️ buktiFotos: $buktiList');
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -635,7 +660,6 @@ class _BuktiFotoSection extends StatelessWidget {
 
                 return Stack(
                   children: [
-                    // ── Thumbnail ────────────────────────────────────────
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
@@ -654,14 +678,17 @@ class _BuktiFotoSection extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) => progress == null
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null
                               ? child
                               : Container(
                                   width: 80,
                                   height: 80,
                                   color: AppTheme.bgCardLight,
                                   child: const Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 ),
                           errorBuilder: (_, __, ___) => Container(
@@ -676,8 +703,6 @@ class _BuktiFotoSection extends StatelessWidget {
                         ),
                       ),
                     ),
-
-                    // ── Tombol × hapus (hanya saat sedang dikerjakan) ────
                     if (bolehHapus)
                       Positioned(
                         top: 2,
@@ -709,7 +734,6 @@ class _BuktiFotoSection extends StatelessWidget {
   }
 }
 
-// ─── TAMBAHKAN class baru ini di bawah _BuktiFotoSection ───────────────────
 class _FotoViewerScreen extends StatefulWidget {
   final List<String> urls;
   final int initialIndex;
@@ -740,52 +764,52 @@ class _FotoViewerScreenState extends State<_FotoViewerScreen> {
   }
 
   Future<void> _download(String url) async {
-  setState(() => _downloading = true);
-  try {
-    final bytes = await _fetchBytes(url);
-    if (bytes == null) throw Exception('Gagal mengunduh foto');
+    setState(() => _downloading = true);
+    try {
+      final bytes = await _fetchBytes(url);
+      if (bytes == null) throw Exception('Gagal mengunduh foto');
 
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName = 'kompen_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes);
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName = 'kompen_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(bytes);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Foto disimpan: ${file.path}'),
-          backgroundColor: AppTheme.accentGreen,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Foto disimpan: ${file.path}'),
+            backgroundColor: AppTheme.accentGreen,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Gagal menyimpan: $e'),
+            backgroundColor: AppTheme.accentRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Gagal menyimpan: $e'),
-          backgroundColor: AppTheme.accentRed,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _downloading = false);
   }
-}
 
-Future<Uint8List?> _fetchBytes(String url) async {
-  try {
-    final client = HttpClient();
-    final request = await client.getUrl(Uri.parse(url));
-    _ngrokHeaders.forEach((k, v) => request.headers.set(k, v));
-    final response = await request.close();
-    final bytes = await consolidateHttpClientResponseBytes(response);
-    client.close();
-    return bytes;
-  } catch (_) {
-    return null;
+  Future<Uint8List?> _fetchBytes(String url) async {
+    try {
+      final client = HttpClient();
+      final request = await client.getUrl(Uri.parse(url));
+      _ngrokHeaders.forEach((k, v) => request.headers.set(k, v));
+      final response = await request.close();
+      final bytes = await consolidateHttpClientResponseBytes(response);
+      client.close();
+      return bytes;
+    } catch (_) {
+      return null;
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -793,7 +817,6 @@ Future<Uint8List?> _fetchBytes(String url) async {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── PageView dengan InteractiveViewer (zoom + pan) ─────────────
           PageView.builder(
             controller: _pageController,
             itemCount: widget.urls.length,
@@ -810,17 +833,24 @@ Future<Uint8List?> _fetchBytes(String url) async {
                     loadingBuilder: (_, child, progress) => progress == null
                         ? child
                         : const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           ),
                     errorBuilder: (_, __, ___) => const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.broken_image_outlined,
-                              color: Colors.white54, size: 48),
+                          Icon(
+                            Icons.broken_image_outlined,
+                            color: Colors.white54,
+                            size: 48,
+                          ),
                           SizedBox(height: 8),
-                          Text('Gagal memuat foto',
-                              style: TextStyle(color: Colors.white54)),
+                          Text(
+                            'Gagal memuat foto',
+                            style: TextStyle(color: Colors.white54),
+                          ),
                         ],
                       ),
                     ),
@@ -829,22 +859,21 @@ Future<Uint8List?> _fetchBytes(String url) async {
               );
             },
           ),
-
-          // ── Top bar: tutup + counter ───────────────────────────────────
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  // Tombol tutup (×)
                   _CircleIconBtn(
                     icon: Icons.close_rounded,
                     onTap: () => Navigator.pop(context),
                   ),
                   const Spacer(),
-                  // Counter  "2 / 5"
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(20),
@@ -855,7 +884,6 @@ Future<Uint8List?> _fetchBytes(String url) async {
                     ),
                   ),
                   const Spacer(),
-                  // Tombol download
                   _downloading
                       ? const SizedBox(
                           width: 40,
@@ -879,8 +907,6 @@ Future<Uint8List?> _fetchBytes(String url) async {
               ),
             ),
           ),
-
-          // ── Dot indicator (bawah) ──────────────────────────────────────
           if (widget.urls.length > 1)
             Positioned(
               bottom: 24,
@@ -910,7 +936,6 @@ Future<Uint8List?> _fetchBytes(String url) async {
   }
 }
 
-// ── Helper widget: tombol bulat transparan ──────────────────────────────────
 class _CircleIconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -923,7 +948,7 @@ class _CircleIconBtn extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.black54,
           shape: BoxShape.circle,
         ),
@@ -932,4 +957,3 @@ class _CircleIconBtn extends StatelessWidget {
     );
   }
 }
-

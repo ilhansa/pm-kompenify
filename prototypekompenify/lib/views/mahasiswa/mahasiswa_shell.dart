@@ -1,7 +1,10 @@
+// lib/views/mahasiswa/mahasiswa_shell.dart
+// Menggunakan AuthController untuk sinkronisasi session dan badge notifikasi global
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
 import '../../utils/app_theme.dart';
 import 'mahasiswa_dashboard.dart';
 import 'assignment_list.dart';
@@ -19,6 +22,7 @@ class MahasiswaShell extends StatefulWidget {
 class _MahasiswaShellState extends State<MahasiswaShell> {
   int _idx = 0;
 
+  // Daftar susunan halaman pada bilah navigasi utama
   final _screens = const [
     MahasiswaDashboard(),
     AssignmentListScreen(),
@@ -29,12 +33,9 @@ class _MahasiswaShellState extends State<MahasiswaShell> {
 
   @override
   Widget build(BuildContext context) {
-    final dataSvc = context.watch<DataService>();
-    
-    // 1. Konversi currentUser?.id ke String menggunakan .toString() agar singkron dengan fungsi statis
-    final unread = dataSvc.getUnreadCount(
-      dataSvc.currentUser?.id != null ? dataSvc.currentUser!.id.toString() : '',
-    );
+    // Mengakses data real-time jumlah notifikasi masuk via AuthController
+    final authController = context.watch<AuthController>();
+    final unread = authController.unreadCount;
 
     return Scaffold(
       body: _screens[_idx],

@@ -1,5 +1,10 @@
 // lib/views/dosen/dosen_shell.dart
+// Menggunakan AuthController untuk sesi dan badge notifikasi global area dosen
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:badges/badges.dart' as badges;
+import '../../controllers/auth_controller.dart';
 import '../../utils/app_theme.dart';
 import '../shared/notifikasi_screen.dart';
 import '../shared/profil_screen.dart';
@@ -7,28 +12,31 @@ import 'dosen_dashboard.dart';
 import 'dosen_assignment.dart';
 import 'dosen_verifikasi.dart';
 
-// ─── Dosen Shell ─────────────────────────────────────────────────────────────
 class DosenShell extends StatefulWidget {
   const DosenShell({super.key});
 
   @override
-  State<DosenShell> createState() => _DosenShellState();
+  State<DosenShell> createState() => __DosenShellState();
 }
 
-class _DosenShellState extends State<DosenShell> {
+class __DosenShellState extends State<DosenShell> {
   int _idx = 0;
 
-  // 🚀 2. SUNTIKKAN HALAMAN TTD KE INDEKS NOMOR 3 (Samping Verifikasi)
+  // Daftar susunan halaman utama Dosen (Halaman TTD dinonaktifkan sesuai kesepakatan kelompok)
   final _screens = const [
     DosenDashboard(),
     DosenAssignment(),
-    DosenVerifikasi(),
-    NotifikasiScreen(), // <--- Geser ke indeks 4
-    ProfilScreen(), // <--- Geser ke indeks 5
+    DosenVerifikasi(), // Proses verifikasi & E-TTD disatukan di halaman ini
+    NotifikasiScreen(),
+    ProfilScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    // Mengambil state jumlah notifikasi belum dibaca secara real-time dari AuthController
+    final authController = context.watch<AuthController>();
+    final unread = authController.unreadCount;
+
     return Scaffold(
       body: _screens[_idx],
       bottomNavigationBar: Container(
@@ -42,28 +50,35 @@ class _DosenShellState extends State<DosenShell> {
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.assignment_outlined),
               selectedIcon: Icon(Icons.assignment_rounded),
               label: 'Assignment',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.verified_outlined),
               selectedIcon: Icon(Icons.verified_rounded),
               label: 'Verifikasi',
             ),
             NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications_rounded),
+              icon: badges.Badge(
+                showBadge: unread > 0,
+                badgeContent: Text(
+                  '$unread',
+                  style: const TextStyle(color: Colors.white, fontSize: 9),
+                ),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              selectedIcon: const Icon(Icons.notifications_rounded),
               label: 'Notifikasi',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person_rounded),
               label: 'Profil',

@@ -1,4 +1,10 @@
+// lib/views/kaprodi/kaprodi_shell.dart
+// Menggunakan AuthController untuk sinkronisasi jumlah badge notifikasi real-time area kaprodi
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:badges/badges.dart' as badges;
+import '../../controllers/auth_controller.dart';
 import '../../utils/app_theme.dart';
 import 'kaprodi_dashboard.dart';
 import 'kaprodi_approval.dart';
@@ -17,17 +23,22 @@ class KaprodiShell extends StatefulWidget {
 class _KaprodiShellState extends State<KaprodiShell> {
   int _idx = 0;
 
+  // Daftar susunan halaman utama pimpinan (Total pas 6 halaman paralel)
   final _screens = const [
     KaprodiDashboard(),
-    KaprodiAssignment(),   // Tab baru: kelola assignment kaprodi
-    KaprodiVerifikasi(),   // Tab baru: verifikasi bukti kompen mahasiswa
-    KaprodiApproval(),     // Tab lama: approval pengajuan masuk
+    KaprodiAssignment(), // Mengelola tugas mandiri dari Kaprodi
+    KaprodiVerifikasi(), // Memvalidasi bukti fisik pengerjaan tugas dari Kaprodi
+    KaprodiApproval(), // Meja utama pengesahan E-TTD berkas akhir mahasiswa
     NotifikasiScreen(),
     ProfilScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    // Mengambil state jumlah notifikasi belum dibaca secara real-time dari AuthController
+    final authController = context.watch<AuthController>();
+    final unread = authController.unreadCount;
+
     return Scaffold(
       body: _screens[_idx],
       bottomNavigationBar: Container(
@@ -41,33 +52,40 @@ class _KaprodiShellState extends State<KaprodiShell> {
           onDestinationSelected: (i) => setState(() => _idx = i),
           indicatorColor: AppTheme.primary.withOpacity(0.2),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.assignment_outlined),
               selectedIcon: Icon(Icons.assignment_rounded),
               label: 'Assignment',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.fact_check_outlined),
               selectedIcon: Icon(Icons.fact_check_rounded),
               label: 'Verifikasi',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.verified_outlined),
               selectedIcon: Icon(Icons.verified_rounded),
               label: 'Approval',
             ),
             NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications_rounded),
+              icon: badges.Badge(
+                showBadge: unread > 0,
+                badgeContent: Text(
+                  '$unread',
+                  style: const TextStyle(color: Colors.white, fontSize: 9),
+                ),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              selectedIcon: const Icon(Icons.notifications_rounded),
               label: 'Notifikasi',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person_rounded),
               label: 'Profil',
