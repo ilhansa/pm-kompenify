@@ -1,7 +1,7 @@
 // lib/views/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../controllers/auth_controller.dart'; // ✅ Dialihkan menuju AuthController pusat
+import '../../controllers/auth_controller.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import '../admin/admin_shell.dart';
