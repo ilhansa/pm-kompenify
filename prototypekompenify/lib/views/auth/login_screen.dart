@@ -1,6 +1,7 @@
+// lib/views/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart'; // ✅ Dialihkan menuju AuthController pusat
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
 import '../admin/admin_shell.dart';
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ─── LOGIKA LOGIN REST API (TETAP DIPERTAHANKAN) ───
+  // ─── LOGIKA LOGIN REST API (SINKRON 100% DENGAN AUTH CONTROLLER KELOMPOKMU) ───
   Future<void> _login() async {
     final username = _nimCtrl.text.trim();
     final password = _passCtrl.text;
@@ -61,7 +62,8 @@ class _LoginScreenState extends State<LoginScreen>
       _error = null;
     });
 
-    final dataSvc = context.read<DataService>();
+    // ✅ Membaca data state otentikasi satu pintu lewat AuthController
+    final dataSvc = context.read<AuthController>();
     final String? errorResult = await dataSvc.loginRestApi(username, password);
 
     if (!mounted) return;
@@ -69,21 +71,36 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (errorResult == null) {
       final user = dataSvc.currentUser;
-      
+
       if (user != null) {
-        // Konversi Enum menjadi string kecil untuk pengecekan aman
+        // ✅ Membaca properti objek Enum .role.name secara aman tanpa takut crash
         final roleName = user.role.name.toLowerCase();
 
         if (roleName == 'mhs' || roleName == 'mahasiswa') {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MahasiswaShell()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MahasiswaShell()),
+          );
         } else if (roleName == 'dosen') {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DosenShell()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DosenShell()),
+          );
         } else if (roleName == 'kaprodi') {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const KaprodiShell()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const KaprodiShell()),
+          );
         } else if (roleName == 'admin') {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminShell()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminShell()),
+          );
         } else {
-          setState(() => _error = 'Hak akses tidak dikenali oleh sistem (Role: $roleName).');
+          setState(
+            () => _error =
+                'Hak akses tidak dikenali oleh sistem (Role: $roleName).',
+          );
         }
       }
     } else {
@@ -91,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  // ─── TAMPILAN UI ASLI KAMU (DIKEMBALIKAN) ───
+  // ─── TAMPILAN UI ASLI KELOMPOK SULTAN (DIKEMBALIKAN PERAWAN) ───
   @override
   Widget build(BuildContext context) {
     return Scaffold(

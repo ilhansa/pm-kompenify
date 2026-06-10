@@ -1,8 +1,11 @@
 // lib/views/kaprodi/kaprodi_verifikasi.dart
+// Menggunakan AuthController untuk interaksi aksi REST API, dan KaprodiController untuk pemantauan tiga lapis data pimpinan
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/kaprodi_controller.dart';
 import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
@@ -19,27 +22,32 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DataService>().fetchPengajuanMenungguVerifikasiKaprodi();
+      // Memperbarui profil secara terpusat yang otomatis memuat ulang data seluruh controller pimpinan
+      context.read<AuthController>().refreshProfile();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
+    final kaprodiController = context.watch<KaprodiController>();
+    final antreanKaprodi = kaprodiController.pengajuanMenungguVerifikasiKaprodi;
 
     // 🚀 KATEGORI 1: TUGAS MILIK KAPRODI SENDIRI (WAR SLOT)
-    final listSeleksiSlot = svc.pengajuanMenungguVerifikasiKaprodi
+    final listSeleksiSlot = antreanKaprodi
         .where((p) => p.status == 'pending')
         .toList();
 
     // 🚀 KATEGORI 2: TUGAS MILIK KAPRODI SENDIRI (MONITORING KERJA)
-    final listMonitoring = svc.pengajuanMenungguVerifikasiKaprodi
-        .where((p) =>
-            p.status == 'sedang dikerjakan' || p.status == 'menunggu_ttd_dosen')
+    final listMonitoring = antreanKaprodi
+        .where(
+          (p) =>
+              p.status == 'sedang dikerjakan' ||
+              p.status == 'menunggu_ttd_dosen',
+        )
         .toList();
 
-    // 🚀 KATEGORI 3: TUGAS SE-KAMPUS YANG NUNGGU ACC MUTLAK
-    final listApprovalAkhir = svc.pengajuanMenungguVerifikasiKaprodi
+    // 🚀 KATEGORI 3: TUGAS SE-KAMPUS YANG NUNGGU ACC MUTLAK (Saringan Utama)
+    final listApprovalAkhir = antreanKaprodi
         .where((p) => p.status == 'menunggu_ttd_kaprodi')
         .toList();
 
@@ -71,7 +79,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
                 onRefresh: () =>
-                    context.read<DataService>().refreshDataKaprodi(),
+                    context.read<AuthController>().refreshProfile(),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -96,10 +104,7 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                         title: 'Tugas Pribadi: Seleksi Slot Mahasiswa',
                       ),
                       ...listSeleksiSlot.map(
-                        (p) => _VerifikasiCard(
-                          pengajuan: p,
-                          mode: 'seleksi',
-                        ),
+                        (p) => _VerifikasiCard(pengajuan: p, mode: 'seleksi'),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -110,15 +115,13 @@ class _KaprodiVerifikasiState extends State<KaprodiVerifikasi> {
                         title: 'Tugas Pribadi: Evaluasi Pengerjaan',
                       ),
                       ...listMonitoring.map(
-                        (p) => _VerifikasiCard(
-                          pengajuan: p,
-                          mode: 'monitoring',
-                        ),
+                        (p) =>
+                            _VerifikasiCard(pengajuan: p, mode: 'monitoring'),
                       ),
                       const SizedBox(height: 16),
                     ],
 
-                    // Jika layar kosong
+                    // Jika layar kosong melompong
                     if (listSeleksiSlot.isEmpty &&
                         listMonitoring.isEmpty &&
                         listApprovalAkhir.isEmpty)
@@ -160,21 +163,16 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-// ─── CARD WIDGET MULTI-FUNGSI ─────────────────────────
+// ─── CARD WIDGET MULTI-FUNGSI KAPRODI ───
 class _VerifikasiCard extends StatelessWidget {
   final PengajuanModel pengajuan;
   final String mode; // 'seleksi', 'monitoring', 'approval_akhir'
 
-  const _VerifikasiCard({
-    required this.pengajuan,
-    required this.mode,
-  });
+  const _VerifikasiCard({required this.pengajuan, required this.mode});
 
   @override
   Widget build(BuildContext context) {
     final p = pengajuan;
-    final svc = context.read<DataService>();
-
     final bool isUdahSelesai = p.status == 'menunggu_ttd_dosen';
     final bool isApprovalAkhir = mode == 'approval_akhir';
 
@@ -188,10 +186,10 @@ class _VerifikasiCard extends StatelessWidget {
           color: isApprovalAkhir
               ? AppTheme.accentGreen.withOpacity(0.5)
               : (mode == 'monitoring'
-                  ? (isUdahSelesai
-                      ? const Color(0xFF6C63FF).withOpacity(0.5)
-                      : Colors.white10)
-                  : AppTheme.accentOrange.withOpacity(0.4)),
+                    ? (isUdahSelesai
+                          ? const Color(0xFF6C63FF).withOpacity(0.5)
+                          : Colors.white10)
+                    : AppTheme.accentOrange.withOpacity(0.4)),
           width: 1.5,
         ),
       ),
@@ -213,13 +211,17 @@ class _VerifikasiCard extends StatelessWidget {
                 label: isApprovalAkhir
                     ? 'Menunggu E-TTD'
                     : (mode == 'monitoring'
-                        ? (isUdahSelesai ? 'Menunggu ACC' : 'Sedang Dikerjakan')
-                        : p.statusLabel),
+                          ? (isUdahSelesai
+                                ? 'Menunggu ACC'
+                                : 'Sedang Dikerjakan')
+                          : p.statusLabel),
                 color: isApprovalAkhir
                     ? AppTheme.accentGreen
                     : (mode == 'monitoring'
-                        ? (isUdahSelesai ? const Color(0xFF6C63FF) : Colors.grey)
-                        : p.statusColor),
+                          ? (isUdahSelesai
+                                ? const Color(0xFF6C63FF)
+                                : Colors.grey)
+                          : p.statusColor),
               ),
             ],
           ),
@@ -248,7 +250,7 @@ class _VerifikasiCard extends StatelessWidget {
             ),
           ),
 
-          // Tampilkan foto bukti jika mahasiswa sudah selesai nugas (Fase B atau C)
+          // Galeri bukti pengerjaan digital mahasiswa
           if ((mode == 'monitoring' && isUdahSelesai) || isApprovalAkhir) ...[
             const SizedBox(height: 12),
             const Text(
@@ -313,7 +315,7 @@ class _VerifikasiCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // ─── TOMBOL AKSI BERDASARKAN MODE ───
+          // ─── TOMBOL AKSI BERDASARKAN MODE DINAMIS ───
           if (mode == 'seleksi') ...[
             Row(
               children: [
@@ -409,20 +411,29 @@ class _VerifikasiCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        final result = await svc.verifikasiPengajuan(
-                          id: p.id,
-                          status: 'diterima',
-                          role: 'kaprodi',
-                        );
+                        // Menembak verifikasiPengajuan bawa status diterima & role kaprodi lewat AuthController
+                        final result = await context
+                            .read<AuthController>()
+                            .verifikasiPengajuan(
+                              id: p.id,
+                              status: 'diterima',
+                              role: 'kaprodi',
+                            );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(result['message']),
+                              content: Text(
+                                result['message'] ??
+                                    'Status berhasil diperbarui',
+                              ),
                               backgroundColor: result['success'] == true
                                   ? AppTheme.accentGreen
                                   : AppTheme.accentRed,
                             ),
                           );
+                          if (result['success'] == true) {
+                            context.read<AuthController>().refreshProfile();
+                          }
                         }
                       },
                       icon: const Icon(Icons.send_rounded, size: 14),
@@ -488,7 +499,7 @@ class _VerifikasiCard extends StatelessWidget {
   }
 }
 
-// ─── KUMPULAN DIALOG AKSI ────────────────
+// ─── KUMPULAN DIALOG AKSI KAPRODI ───
 void _showTerimaDialog(BuildContext context, PengajuanModel p) {
   showDialog(
     context: context,
@@ -504,11 +515,20 @@ void _showTerimaDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
-            await context
-                .read<DataService>()
-                .verifikasiPengajuan(id: p.id, status: 'diterima', role: 'kaprodi');
+            final result = await context
+                .read<AuthController>()
+                .verifikasiPengajuan(
+                  id: p.id,
+                  status: 'diterima',
+                  role: 'kaprodi',
+                );
+            if (context.mounted && result['success'] == true) {
+              context.read<AuthController>().refreshProfile();
+            }
           },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.accentGreen,
+          ),
           child: const Text('Pilih'),
         ),
       ],
@@ -531,9 +551,16 @@ void _showTolakDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
-            await context
-                .read<DataService>()
-                .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'kaprodi');
+            final result = await context
+                .read<AuthController>()
+                .verifikasiPengajuan(
+                  id: p.id,
+                  status: 'ditolak',
+                  role: 'kaprodi',
+                );
+            if (context.mounted && result['success'] == true) {
+              context.read<AuthController>().refreshProfile();
+            }
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
           child: const Text('Tolak'),
@@ -549,7 +576,9 @@ void _showRevisiDialog(BuildContext context, PengajuanModel p) {
     builder: (_) => AlertDialog(
       backgroundColor: AppTheme.bgCard,
       title: const Text('Tolak / Revisi'),
-      content: const Text('Kembalikan status pengerjaan mahasiswa ini untuk direvisi?'),
+      content: const Text(
+        'Kembalikan status pengerjaan mahasiswa ini untuk direvisi?',
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -558,9 +587,16 @@ void _showRevisiDialog(BuildContext context, PengajuanModel p) {
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
-            await context
-                .read<DataService>()
-                .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'kaprodi');
+            final result = await context
+                .read<AuthController>()
+                .verifikasiPengajuan(
+                  id: p.id,
+                  status: 'ditolak',
+                  role: 'kaprodi',
+                );
+            if (context.mounted && result['success'] == true) {
+              context.read<AuthController>().refreshProfile();
+            }
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
           child: const Text('Tolak'),
@@ -588,16 +624,27 @@ void _showSahDialog(BuildContext context, PengajuanModel p) {
           onPressed: () async {
             Navigator.pop(context);
             final result = await context
-                .read<DataService>()
-                .verifikasiPengajuan(id: p.id, status: 'diterima', role: 'kaprodi');
-            
+                .read<AuthController>()
+                .verifikasiPengajuan(
+                  id: p.id,
+                  status: 'diterima',
+                  role: 'kaprodi',
+                );
+
             if (context.mounted) {
-               ScaffoldMessenger.of(context).showSnackBar(
-                 SnackBar(
-                   content: Text(result['message']),
-                   backgroundColor: result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
-                 ),
-               );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result['message'] ?? 'Berhasil disahkan mutlak',
+                  ),
+                  backgroundColor: result['success'] == true
+                      ? AppTheme.accentGreen
+                      : AppTheme.accentRed,
+                ),
+              );
+              if (result['success'] == true) {
+                context.read<AuthController>().refreshProfile();
+              }
             }
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),

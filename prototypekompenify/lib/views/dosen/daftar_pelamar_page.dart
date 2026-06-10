@@ -1,9 +1,12 @@
+// lib/views/dosen/daftar_pelamar_page.dart
+// Menggunakan AuthController untuk sinkronisasi token sesi dan verifikasi status pelamar
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
 import '../../models/assignment_model.dart';
 import '../../models/pengajuan_model.dart';
 
@@ -32,8 +35,10 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
       _error = null;
     });
     try {
-      final token = context.read<DataService>().token!;
+      // Mengambil token otentikasi aktif dari AuthController
+      final token = context.read<AuthController>().token!;
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+
       final res = await http.get(
         Uri.parse(
           '$baseUrl/dosen/assignments/${widget.assignment.id}/pengajuan-kompen',
@@ -43,6 +48,7 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
           'Authorization': 'Bearer $token',
         },
       );
+
       final body = jsonDecode(res.body);
       if (res.statusCode == 200 && body['success'] == true) {
         setState(() {
@@ -99,13 +105,14 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
     if (confirm != true) return;
 
     try {
-      // 🚀 DI SINI PERUBAHANNYA: Menggunakan verifikasiPengajuan
-      final result = await context.read<DataService>().verifikasiPengajuan(
+      // Menjalankan fungsi verifikasi satu pintu melalui AuthController
+      final result = await context.read<AuthController>().verifikasiPengajuan(
         id: p.id,
         status: status,
-        role: 'dosen', // 👈 Pastikan role dosen karena ini halaman Daftar Pelamar
+        role:
+            'dosen', // Memastikan instruksi peran tetap ditujukan kepada dosen
       );
-      
+
       if (result['success'] == true) {
         _showSnackbar(
           status == 'diterima'
@@ -292,8 +299,6 @@ class _DaftarPelamarPageState extends State<DaftarPelamarPage> {
     ),
   );
 }
-
-// ── Card pelamar ───────────────────────────────────────────────────────────────
 
 class _PelamarCard extends StatelessWidget {
   final PengajuanModel pengajuan;

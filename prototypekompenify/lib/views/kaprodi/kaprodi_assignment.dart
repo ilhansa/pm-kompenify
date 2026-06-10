@@ -1,17 +1,11 @@
 // lib/views/kaprodi/kaprodi_assignment.dart
-// Halaman assignment untuk Kaprodi.
-// Fitur: lihat daftar assignment, buat, edit, hapus, dan lihat pelamar.
-// Sinkron dengan mahasiswa karena assignment kaprodi juga muncul di list aktif mahasiswa.
-//
-// Perbedaan dari dosen_assignment.dart:
-//   - Semua API call ke /api/kaprodi/... (bukan /api/dosen/...)
-//   - Menggunakan DataService.addAssignmentKaprodiApi, editAssignmentKaprodiApi, dll.
-//   - Navigasi "Lihat Pelamar" ke DaftarPelamarKaprodiPage (endpoint kaprodi)
+// Menggunakan AuthController untuk sesi login dan KaprodiController untuk manajemen CRUD tugas kaprodi
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/kaprodi_controller.dart';
 import '../../models/assignment_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
@@ -22,8 +16,9 @@ class KaprodiAssignment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
-    final list = svc.assignmentsKaprodi; // ← state khusus kaprodi
+    // 1. Membaca data state koleksi penugasan pimpinan dari KaprodiController
+    final kaprodiController = context.watch<KaprodiController>();
+    final list = kaprodiController.assignmentsKaprodi;
 
     return GradientBackground(
       child: SafeArea(
@@ -39,7 +34,9 @@ class KaprodiAssignment extends StatelessWidget {
                   ),
                   const Spacer(),
                   IconButton.filled(
-                    style: IconButton.styleFrom(backgroundColor: AppTheme.primary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                    ),
                     icon: const Icon(Icons.add_rounded, color: Colors.white),
                     onPressed: () => _showForm(context),
                   ),
@@ -50,7 +47,9 @@ class KaprodiAssignment extends StatelessWidget {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
-                onRefresh: () => context.read<DataService>().refreshDataKaprodi(),
+                // Menggunakan sinkronisasi profil terpusat dari AuthController
+                onRefresh: () =>
+                    context.read<AuthController>().refreshProfile(),
                 child: list.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -60,7 +59,8 @@ class KaprodiAssignment extends StatelessWidget {
                             child: EmptyState(
                               icon: Icons.add_task_rounded,
                               title: 'Belum ada assignment',
-                              subtitle: 'Tap tombol + untuk membuat assignment baru',
+                              subtitle:
+                                  'Tap tombol + untuk membuat assignment baru',
                             ),
                           ),
                         ],
@@ -78,7 +78,8 @@ class KaprodiAssignment extends StatelessWidget {
                             onLihatPelamar: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => KaprodiDaftarPelamarPage(assignment: a),
+                                builder: (_) =>
+                                    KaprodiDaftarPelamarPage(assignment: a),
                               ),
                             ),
                           );
@@ -98,7 +99,9 @@ class KaprodiAssignment extends StatelessWidget {
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: const Text('Hapus Assignment?'),
-        content: const Text('Assignment ini akan dihapus permanen dari server.'),
+        content: const Text(
+          'Assignment ini akan dihapus permanen dari server.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -107,20 +110,34 @@ class KaprodiAssignment extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final result =
-                  await context.read<DataService>().deleteAssignmentKaprodiApi(id);
+
+              // Mengambil token otentikasi aktif dari AuthController
+              final token = context.read<AuthController>().token ?? '';
+
+              // Mengarahkan fungsi hapus ke KaprodiController bawaan timmu
+              final result = await context
+                  .read<KaprodiController>()
+                  .deleteAssignmentKaprodiApi(token, id);
+
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(result['success'] == true
-                      ? '✅ Assignment berhasil dihapus!'
-                      : '❌ ${result['message']}'),
-                  backgroundColor: result['success'] == true
-                      ? AppTheme.accentGreen
-                      : AppTheme.accentRed,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result['success'] == true
+                          ? '✅ Assignment berhasil dihapus!'
+                          : '❌ ${result['message']}',
+                    ),
+                    backgroundColor: result['success'] == true
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentRed,
+                  ),
+                );
               }
             },
-            child: const Text('Hapus', style: TextStyle(color: AppTheme.accentRed)),
+            child: const Text(
+              'Hapus',
+              style: TextStyle(color: AppTheme.accentRed),
+            ),
           ),
         ],
       ),
@@ -168,13 +185,15 @@ class _AssignmentKaprodiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Judul + badge status ──
           Row(
             children: [
               Expanded(
                 child: Text(
                   a.judul,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               Container(
@@ -190,7 +209,9 @@ class _AssignmentKaprodiCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: a.status == 'aktif' ? AppTheme.accentGreen : AppTheme.textMuted,
+                    color: a.status == 'aktif'
+                        ? AppTheme.accentGreen
+                        : AppTheme.textMuted,
                   ),
                 ),
               ),
@@ -206,12 +227,22 @@ class _AssignmentKaprodiCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.schedule_outlined, size: 13, color: AppTheme.accent),
+              const Icon(
+                Icons.schedule_outlined,
+                size: 13,
+                color: AppTheme.accent,
+              ),
               const SizedBox(width: 4),
-              Text('${a.jamKompen} jam kompen',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.accent)),
+              Text(
+                '${a.jamKompen} jam kompen',
+                style: const TextStyle(fontSize: 12, color: AppTheme.accent),
+              ),
               const SizedBox(width: 16),
-              const Icon(Icons.calendar_today_outlined, size: 13, color: AppTheme.textMuted),
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 13,
+                color: AppTheme.textMuted,
+              ),
               const SizedBox(width: 4),
               Text(
                 '${a.tanggalMulai} – ${a.tanggalSelesai}',
@@ -220,8 +251,6 @@ class _AssignmentKaprodiCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // ── Tombol lihat pelamar (full width) ──
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -236,8 +265,6 @@ class _AssignmentKaprodiCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-
-          // ── Edit + Hapus ──
           Row(
             children: [
               Expanded(
@@ -253,8 +280,15 @@ class _AssignmentKaprodiCard extends StatelessWidget {
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 14, color: AppTheme.accentRed),
-                label: const Text('Hapus', style: TextStyle(color: AppTheme.accentRed)),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 14,
+                  color: AppTheme.accentRed,
+                ),
+                label: const Text(
+                  'Hapus',
+                  style: TextStyle(color: AppTheme.accentRed),
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   side: const BorderSide(color: AppTheme.accentRed),
@@ -313,27 +347,31 @@ class _AssignmentKaprodiFormSheetState
     if (_judulCtrl.text.isEmpty || _descCtrl.text.isEmpty) return;
     setState(() => _isSaving = true);
 
-    final svc = context.read<DataService>();
+    // Mengambil token sesi aktif kaprodi dari AuthController
+    final token = context.read<AuthController>().token ?? '';
+    final kaprodiCtrl = context.read<KaprodiController>();
     Map<String, dynamic> result;
 
     if (widget.assignment == null) {
-      // BUAT baru → DataService.addAssignmentKaprodiApi
-      result = await svc.addAssignmentKaprodiApi(
+      // BUAT baru → KaprodiController.addAssignmentKaprodiApi
+      result = await kaprodiCtrl.addAssignmentKaprodiApi(
+        token,
         judul: _judulCtrl.text.trim(),
         deskripsi: _descCtrl.text.trim(),
         jamKompen: _jam,
-        tanggalMulai: _mulai,
-        tanggalSelesai: _berakhir,
+        tanggalMulai: _mulai.toIso8601String().substring(0, 10),
+        tanggalSelesai: _berakhir.toIso8601String().substring(0, 10),
       );
     } else {
-      // EDIT → DataService.editAssignmentKaprodiApi
-      result = await svc.editAssignmentKaprodiApi(
+      // EDIT → KaprodiController.editAssignmentKaprodiApi
+      result = await kaprodiCtrl.editAssignmentKaprodiApi(
+        token,
         widget.assignment!.id,
         judul: _judulCtrl.text.trim(),
         deskripsi: _descCtrl.text.trim(),
         jamKompen: _jam,
-        tanggalMulai: _mulai,
-        tanggalSelesai: _berakhir,
+        tanggalMulai: _mulai.toIso8601String().substring(0, 10),
+        tanggalSelesai: _berakhir.toIso8601String().substring(0, 10),
       );
     }
 
@@ -341,22 +379,29 @@ class _AssignmentKaprodiFormSheetState
 
     if (context.mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result['success'] == true
-            ? widget.assignment == null
-                ? '✅ Assignment berhasil dibuat!'
-                : '✅ Assignment diperbarui!'
-            : '❌ ${result['message']}'),
-        backgroundColor:
-            result['success'] == true ? AppTheme.accentGreen : AppTheme.accentRed,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success'] == true
+                ? widget.assignment == null
+                      ? '✅ Assignment berhasil dibuat!'
+                      : '✅ Assignment diperbarui!'
+                : '❌ ${result['message']}',
+          ),
+          backgroundColor: result['success'] == true
+              ? AppTheme.accentGreen
+              : AppTheme.accentRed,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -365,13 +410,19 @@ class _AssignmentKaprodiFormSheetState
             Row(
               children: [
                 Text(
-                  widget.assignment == null ? 'Buat Assignment' : 'Edit Assignment',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  widget.assignment == null
+                      ? 'Buat Assignment'
+                      : 'Edit Assignment',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context)),
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -388,38 +439,47 @@ class _AssignmentKaprodiFormSheetState
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Deskripsi',
-                prefixIcon: Icon(Icons.description_outlined, color: AppTheme.accent),
+                prefixIcon: Icon(
+                  Icons.description_outlined,
+                  color: AppTheme.accent,
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Jam Kompen',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            const Text(
+              'Jam Kompen',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: [2, 3, 4, 6, 8]
-                  .map((j) => GestureDetector(
-                        onTap: () => setState(() => _jam = j),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
+                  .map(
+                    (j) => GestureDetector(
+                      onTap: () => setState(() => _jam = j),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _jam == j
+                              ? AppTheme.primary
+                              : AppTheme.bgCardLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$j jam',
+                          style: TextStyle(
                             color: _jam == j
-                                ? AppTheme.primary
-                                : AppTheme.bgCardLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '$j jam',
-                            style: TextStyle(
-                              color: _jam == j
-                                  ? Colors.white
-                                  : AppTheme.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                                ? Colors.white
+                                : AppTheme.textSecondary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 12),
@@ -427,16 +487,18 @@ class _AssignmentKaprodiFormSheetState
               children: [
                 Expanded(
                   child: _DateBtn(
-                      label: 'Mulai',
-                      date: _mulai,
-                      onPick: (d) => setState(() => _mulai = d)),
+                    label: 'Mulai',
+                    date: _mulai,
+                    onPick: (d) => setState(() => _mulai = d),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _DateBtn(
-                      label: 'Berakhir',
-                      date: _berakhir,
-                      onPick: (d) => setState(() => _berakhir = d)),
+                    label: 'Berakhir',
+                    date: _berakhir,
+                    onPick: (d) => setState(() => _berakhir = d),
+                  ),
                 ),
               ],
             ),
@@ -449,21 +511,26 @@ class _AssignmentKaprodiFormSheetState
                   backgroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _isSaving
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         widget.assignment == null
                             ? 'Buat Assignment'
                             : 'Simpan Perubahan',
                         style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w600),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
               ),
             ),
@@ -479,7 +546,11 @@ class _DateBtn extends StatelessWidget {
   final String label;
   final DateTime date;
   final void Function(DateTime) onPick;
-  const _DateBtn({required this.label, required this.date, required this.onPick});
+  const _DateBtn({
+    required this.label,
+    required this.date,
+    required this.onPick,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -503,8 +574,10 @@ class _DateBtn extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+            ),
             const SizedBox(height: 2),
             Text(
               DateFormat('dd MMM yyyy').format(date),

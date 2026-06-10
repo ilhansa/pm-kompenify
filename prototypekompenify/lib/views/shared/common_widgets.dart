@@ -26,8 +26,12 @@ class PrimaryButton extends StatelessWidget {
   final double? width;
 
   const PrimaryButton({
-    super.key, required this.label, this.onTap,
-    this.loading = false, this.icon, this.width,
+    super.key,
+    required this.label,
+    this.onTap,
+    this.loading = false,
+    this.icon,
+    this.width,
   });
 
   @override
@@ -40,27 +44,48 @@ class PrimaryButton extends StatelessWidget {
           gradient: onTap == null ? null : AppTheme.primaryGradient,
           color: onTap == null ? AppTheme.textMuted : null,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: onTap == null ? null : [
-            BoxShadow(
-              color: AppTheme.primary.withOpacity(0.4),
-              blurRadius: 12, offset: const Offset(0, 6),
-            ),
-          ],
+          boxShadow: onTap == null
+              ? null
+              : [
+                  BoxShadow(
+                    color: AppTheme.primary.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
         ),
         child: ElevatedButton(
           onPressed: loading ? null : onTap,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
           child: loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                    Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    if (icon != null) ...[
+                      Icon(icon, size: 18),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
         ),
@@ -85,7 +110,14 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.4), width: 1),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -109,37 +141,77 @@ class KompenCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppTheme.divider, width: 1),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: Text(pengajuan.assignmentJudul,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    pengajuan.assignmentJudul,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                StatusBadge(
+                  label: pengajuan.statusLabel,
+                  color: pengajuan.statusColor,
+                ),
+              ],
             ),
-            StatusBadge(label: pengajuan.statusLabel, color: pengajuan.statusColor),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            Icon(Icons.person_outline, size: 14, color: AppTheme.textMuted),
-            const SizedBox(width: 4),
-            Expanded(child: Text(pengajuan.dosenNama,
-              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary), overflow: TextOverflow.ellipsis)),
-          ]),
-          const SizedBox(height: 4),
-          Row(children: [
-            Icon(Icons.schedule_outlined, size: 14, color: AppTheme.textMuted),
-            const SizedBox(width: 4),
-            Text('${pengajuan.jamKompen} jam kompen',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-            const Spacer(),
-            Text(DateFormat('dd MMM yyyy').format(pengajuan.tanggalPengajuan),
-              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-          ]),
-          // TTD progress
-          if (pengajuan.status != KompenStatus.menunggu && pengajuan.status != KompenStatus.ditolak) ...[
-            const SizedBox(height: 12),
-            _TtdProgress(pengajuan: pengajuan),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.person_outline, size: 14, color: AppTheme.textMuted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    pengajuan.dosenNama,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule_outlined,
+                  size: 14,
+                  color: AppTheme.textMuted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${pengajuan.jamKompen} jam kompen',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  DateFormat('dd MMM yyyy').format(pengajuan.tanggalPengajuan),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+            // TTD progress
+            if (pengajuan.status != KompenStatus.menunggu &&
+                pengajuan.status != KompenStatus.ditolak) ...[
+              const SizedBox(height: 12),
+              _TtdProgress(pengajuan: pengajuan),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -153,13 +225,15 @@ class _TtdProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasDosen = pengajuan.ttdDosenBase64 != null;
     final hasKaprodi = pengajuan.ttdKaprodiBase64 != null;
-    return Row(children: [
-      _Step(label: 'Upload Bukti', done: pengajuan.buktiFotoPath != null),
-      _StepLine(),
-      _Step(label: 'TTD Dosen', done: hasDosen),
-      _StepLine(),
-      _Step(label: 'TTD Kaprodi', done: hasKaprodi),
-    ]);
+    return Row(
+      children: [
+        _Step(label: 'Upload Bukti', done: pengajuan.buktiFotoPath != null),
+        _StepLine(),
+        _Step(label: 'TTD Dosen', done: hasDosen),
+        _StepLine(),
+        _Step(label: 'TTD Kaprodi', done: hasKaprodi),
+      ],
+    );
   }
 }
 
@@ -170,19 +244,28 @@ class _Step extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Container(
-        width: 24, height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: done ? AppTheme.accentGreen : AppTheme.divider,
+    return Column(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: done ? AppTheme.accentGreen : AppTheme.divider,
+          ),
+          child: Icon(
+            done ? Icons.check : Icons.circle,
+            size: 14,
+            color: done ? Colors.white : AppTheme.textMuted,
+          ),
         ),
-        child: Icon(done ? Icons.check : Icons.circle, size: 14,
-          color: done ? Colors.white : AppTheme.textMuted),
-      ),
-      const SizedBox(height: 2),
-      Text(label, style: const TextStyle(fontSize: 9, color: AppTheme.textMuted)),
-    ]);
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 9, color: AppTheme.textMuted),
+        ),
+      ],
+    );
   }
 }
 
@@ -199,7 +282,12 @@ class AssignmentCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
 
-  const AssignmentCard({super.key, required this.assignment, this.onTap, this.trailing});
+  const AssignmentCard({
+    super.key,
+    required this.assignment,
+    this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -216,63 +304,132 @@ class AssignmentCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppTheme.divider),
         ),
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${assignment.jamKompen} Jam',
+                          style: const TextStyle(
+                            color: AppTheme.accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (assignment.isFull)
+                        const StatusBadge(
+                          label: 'Penuh',
+                          color: AppTheme.accentRed,
+                        )
+                      else if (isExpiring)
+                        StatusBadge(
+                          label: 'Segera Berakhir',
+                          color: AppTheme.accentOrange,
+                        )
+                      else
+                        const StatusBadge(
+                          label: 'Tersedia',
+                          color: AppTheme.accentGreen,
+                        ),
+                    ],
                   ),
-                  child: Text('${assignment.jamKompen} Jam',
-                    style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700, fontSize: 12)),
-                ),
-                const Spacer(),
-                if (assignment.isFull)
-                  const StatusBadge(label: 'Penuh', color: AppTheme.accentRed)
-                else if (isExpiring)
-                  StatusBadge(label: 'Segera Berakhir', color: AppTheme.accentOrange)
-                else
-                  const StatusBadge(label: 'Tersedia', color: AppTheme.accentGreen),
-              ]),
-              const SizedBox(height: 10),
-              Text(assignment.judul,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-              const SizedBox(height: 6),
-              Text(assignment.deskripsi,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.5)),
-              const SizedBox(height: 12),
-              Row(children: [
-                Icon(Icons.person_outline, size: 14, color: AppTheme.textMuted),
-                const SizedBox(width: 4),
-                Expanded(child: Text(assignment.dosenNama,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  overflow: TextOverflow.ellipsis)),
-              ]),
-              const SizedBox(height: 4),
-              Row(children: [
-                Icon(Icons.people_outline, size: 14, color: AppTheme.textMuted),
-                const SizedBox(width: 4),
-                Text('${assignment.mahasiswaTerdaftar.length}/${assignment.kuotaMahasiswa} mahasiswa',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                const Spacer(),
-                Icon(Icons.calendar_today_outlined, size: 14, color: AppTheme.textMuted),
-                const SizedBox(width: 4),
-                Text(DateFormat('dd MMM').format(assignment.tanggalBerakhir),
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-              ]),
-            ]),
-          ),
-          if (trailing != null) ...[
-            Divider(height: 1, color: AppTheme.divider),
-            Padding(padding: const EdgeInsets.all(12), child: trailing!),
+                  const SizedBox(height: 10),
+                  Text(
+                    assignment.judul,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    assignment.deskripsi,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 14,
+                        color: AppTheme.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          assignment.dosenNama,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: 14,
+                        color: AppTheme.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${assignment.mahasiswaTerdaftar.length}/${assignment.kuotaMahasiswa} mahasiswa',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: AppTheme.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('dd MMM').format(assignment.tanggalBerakhir),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              Divider(height: 1, color: AppTheme.divider),
+              Padding(padding: const EdgeInsets.all(12), child: trailing!),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -284,19 +441,36 @@ class SectionHeader extends StatelessWidget {
   final String? action;
   final VoidCallback? onAction;
 
-  const SectionHeader({super.key, required this.title, this.action, this.onAction});
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.action,
+    this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-      const Spacer(),
-      if (action != null)
-        GestureDetector(
-          onTap: onAction,
-          child: Text(action!, style: const TextStyle(color: AppTheme.accent, fontSize: 13, fontWeight: FontWeight.w500)),
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-    ]);
+        const Spacer(),
+        if (action != null)
+          GestureDetector(
+            onTap: onAction,
+            child: Text(
+              action!,
+              style: const TextStyle(
+                color: AppTheme.accent,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -306,30 +480,48 @@ class EmptyState extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  const EmptyState({super.key, required this.icon, required this.title, this.subtitle});
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.bgCard, shape: BoxShape.circle,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.bgCard,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 48, color: AppTheme.textMuted),
             ),
-            child: Icon(icon, size: 48, color: AppTheme.textMuted),
-          ),
-          const SizedBox(height: 16),
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            textAlign: TextAlign.center),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(subtitle!, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-              textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -341,18 +533,34 @@ class InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const InfoRow({super.key, required this.icon, required this.label, required this.value});
+  const InfoRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, size: 16, color: AppTheme.accent),
-        const SizedBox(width: 10),
-        Text('$label: ', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-        Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.accent),
+          const SizedBox(width: 10),
+          Text(
+            '$label: ',
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -364,7 +572,13 @@ class StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const StatCard({super.key, required this.label, required this.value, required this.icon, required this.color});
+  const StatCard({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -375,13 +589,26 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 8),
-        Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }

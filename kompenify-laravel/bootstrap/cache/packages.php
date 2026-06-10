@@ -1,4 +1,5 @@
 <?php return array (
+<<<<<<< HEAD
   'barryvdh/laravel-dompdf' => 
   array (
     'aliases' => 
@@ -11,6 +12,8 @@
       0 => 'Barryvdh\\DomPDF\\ServiceProvider',
     ),
   ),
+=======
+>>>>>>> 6374fc19a8fa14e2d0ced1c939e5cd2512b973f1
   'laravel/sail' => 
   array (
     'providers' => 

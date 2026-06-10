@@ -1,8 +1,11 @@
 // lib/views/kaprodi/kaprodi_approval.dart
+// Menggunakan AuthController untuk otentikasi & verifikasi, serta KaprodiController untuk antrean berkas meja pimpinan
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/kaprodi_controller.dart';
 import '../../models/pengajuan_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/common_widgets.dart';
@@ -12,17 +15,18 @@ class KaprodiApproval extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svc = context.watch<DataService>();
+    // 1. Mengakses state koleksi berkas pimpinan dari KaprodiController
+    final kaprodiController = context.watch<KaprodiController>();
+    final antreanKaprodi = kaprodiController.pengajuanMenungguVerifikasiKaprodi;
 
     // 🚀 FILTER SAKTI SULTAN (MEJA UTAMA PIMPINAN):
     // Kaprodi HANYA melihat berkas mahasiswa dari dosen manapun yang sudah lolos TTD Dosen Pembimbing
-    // Yaitu yang status di database bernilai 'menunggu_ttd_kaprodi'
-    final pending = svc.pengajuanMenungguVerifikasiKaprodi
+    final pending = antreanKaprodi
         .where((p) => p.status == 'menunggu_ttd_kaprodi')
         .toList();
 
-    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi ('diterima' di database API kita)
-    final history = svc.pengajuanMenungguVerifikasiKaprodi
+    // Riwayat adalah berkas yang sudah resmi disahkan lunas total oleh Kaprodi ('diterima' di database API)
+    final history = antreanKaprodi
         .where((p) => p.status == 'selesai' || p.status == 'diterima')
         .toList();
 
@@ -53,8 +57,9 @@ class KaprodiApproval extends StatelessWidget {
               child: RefreshIndicator(
                 color: AppTheme.primary,
                 backgroundColor: AppTheme.bgCard,
+                // Menggunakan fungsi penyegaran profil induk dari AuthController
                 onRefresh: () =>
-                    context.read<DataService>().refreshDataKaprodi(),
+                    context.read<AuthController>().refreshProfile(),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -275,7 +280,7 @@ class _ApprovalCard extends StatelessWidget {
             Icon(Icons.verified_user_outlined, color: Color(0xFF00B4D8)),
             SizedBox(width: 10),
             Text(
-              'Sahkan Dokumen final',
+              'Sahkan Dokumen Final',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
@@ -294,11 +299,15 @@ class _ApprovalCard extends StatelessWidget {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              // 🚀 PERUBAHAN DI SINI: Nembak verifikasiPengajuan jadi 'diterima'
+              // ✅ Nembak verifikasiPengajuan bawa status diterima & role kaprodi lewat AuthController
               final result = await context
-                  .read<DataService>()
-                  .verifikasiPengajuan(id: p.id, status: 'diterima', role: 'kaprodi');
-                  
+                  .read<AuthController>()
+                  .verifikasiPengajuan(
+                    id: p.id,
+                    status: 'diterima',
+                    role: 'kaprodi',
+                  );
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -313,6 +322,9 @@ class _ApprovalCard extends StatelessWidget {
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
+                if (result['success'] == true) {
+                  context.read<AuthController>().refreshProfile();
+                }
               }
             },
             child: const Text(
@@ -347,11 +359,15 @@ class _ApprovalCard extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.accentRed),
             onPressed: () async {
               Navigator.pop(context);
-              // 🚀 PERUBAHAN DI SINI: Nembak verifikasiPengajuan jadi 'ditolak'
+              // ✅ Nembak verifikasiPengajuan bawa status ditolak & role kaprodi lewat AuthController
               final result = await context
-                  .read<DataService>()
-                  .verifikasiPengajuan(id: p.id, status: 'ditolak', role: 'kaprodi');
-                  
+                  .read<AuthController>()
+                  .verifikasiPengajuan(
+                    id: p.id,
+                    status: 'ditolak',
+                    role: 'kaprodi',
+                  );
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -366,6 +382,9 @@ class _ApprovalCard extends StatelessWidget {
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
+                if (result['success'] == true) {
+                  context.read<AuthController>().refreshProfile();
+                }
               }
             },
             child: const Text(
