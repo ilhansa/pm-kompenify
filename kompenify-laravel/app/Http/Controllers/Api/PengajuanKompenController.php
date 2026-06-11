@@ -438,6 +438,18 @@ class PengajuanKompenController extends Controller
                     return response()->json(['success' => false, 'message' => 'Kaprodi sudah menyetujui dokumen ini!'], 400);
                 }
 
+                // 🚀 TAMBAHAN: KURANGI JAM KOMPEN DI SINI JUGA BIAR AMAN!
+                $mahasiswa = \App\Models\Mahasiswa::find($pengajuan->mahasiswa_id);
+                if ($mahasiswa) {
+                    $jumlahJam = (int) $pengajuan->assignment->jam_kompen;
+                    $sisaBaru = (int) $mahasiswa->sisa_jam_kompen - $jumlahJam;
+                    if ($sisaBaru < 0) $sisaBaru = 0;
+
+                    \Illuminate\Support\Facades\DB::table('mahasiswas')
+                        ->where('id', $mahasiswa->id)
+                        ->update(['sisa_jam_kompen' => $sisaBaru]);
+                }
+
                 // Kaprodi ttd, otomatis status enum berubah jadi 'diterima' (Lunas Mutlak!)
                 $pengajuan->update([
                     'status' => 'diterima',
@@ -530,7 +542,6 @@ class PengajuanKompenController extends Controller
     }
 
     // PUT: VERIFIKASI TUGAS (MENCATAT TANGGAL MULAI & SELESAI OTOMATIS)
-    // PUT: VERIFIKASI TUGAS (MENGATUR TANGGAL MULAI & SELESAI DI TABEL ASSIGNMENTS LORR!)
     public function verifikasi(Request $request, $id)
     {
         $user = $request->user();
@@ -615,16 +626,20 @@ class PengajuanKompenController extends Controller
                 }
 
                 if ($request->status === 'diterima') {
-                    if (!$pengajuan->mahasiswa) {
-                        $pengajuan->load('mahasiswa');
-                    }
 
-                    $mahasiswa = $pengajuan->mahasiswa;
-
+                    // 🚀 CUMA ADA 1 LOGIKA PENGURANGAN DI SINI (ANTI DOUBLE KILL)
+                    $mahasiswa = \App\Models\Mahasiswa::find($pengajuan->mahasiswa_id);
                     if ($mahasiswa) {
-                        $jumlahJam = $pengajuan->assignment->jam_kompen;
-                        $mahasiswa->sisa_jam_kompen -= $jumlahJam;
-                        $mahasiswa->save();
+                        $jumlahJam = (int) $pengajuan->assignment->jam_kompen;
+                        $sisaBaru = (int) $mahasiswa->sisa_jam_kompen - $jumlahJam;
+
+                        // Mentok di angka 0, jangan sampai minus
+                        if ($sisaBaru < 0) $sisaBaru = 0;
+
+                        // Tembak langsung tembus ke MySQL!
+                        \Illuminate\Support\Facades\DB::table('mahasiswas')
+                            ->where('id', $mahasiswa->id)
+                            ->update(['sisa_jam_kompen' => $sisaBaru]);
                     } else {
                         return response()->json(['success' => false, 'message' => 'Data mahasiswa tidak ditemukan!'], 404);
                     }
