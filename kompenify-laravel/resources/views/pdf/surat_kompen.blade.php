@@ -69,8 +69,7 @@
         <div class="ttd-kiri">
             <p>Mengetahui,<br>Dosen Pemberi Tugas</p>
             <div class="qr-box">
-                {{-- 🚀 MENEMBAK GOOGLE API: AMAN, CEPAT, DAN DIJAMIN MUNCUL JINK! --}}
-                <img src="https://chart.googleapis.com/chart?chs=100x100&cht=qr&chl={{ urlencode($urlValidasiDosen) }}&choe=UTF-8" width="100" height="100" />
+                <img src="data:image/png;base64,{{ $qrDosenBase64 }}" width="100" height="100" />
             </div>
             <p><u>Validasi Sistem Elektronik</u></p>
         </div>
@@ -78,8 +77,7 @@
         <div class="ttd-kanan">
             <p>Mengesahkan,<br>Kepala Program Studi</p>
             <div class="qr-box">
-                {{-- 🚀 AMAN DARI SEGALA MACAM ERROR CLASS NOT FOUND --}}
-                <img src="https://chart.googleapis.com/chart?chs=100x100&cht=qr&chl={{ urlencode($urlValidasiKaprodi) }}&choe=UTF-8" width="100" height="100" />
+                <img src="data:image/png;base64,{{ $qrKaprodiBase64 }}" width="100" height="100" />
             </div>
             <p><u>Validasi Sistem Elektronik</u></p>
         </div>

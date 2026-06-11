@@ -10,7 +10,8 @@ use App\Http\Controllers\Api\ValidasiController;
 Route::post('/login', [AuthController::class, 'login']);
 // GET: URL untuk di-scan oleh kamera HP guna mengecek keaslian token E-TTD
 Route::get('/validasi-dokumen/{token}', [ValidasiController::class, 'cekDokumen']);
-
+// Rute Umum untuk Validasi QR Code Scan (Bisa diakses tanpa login)
+Route::get('/validasi-dokumen/{token}', [ValidasiController::class, 'validasiDokumen']);
 
 // 2. GERBANG PRIVAT (Wajib Lolos Autentikasi & Bawa Token Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
