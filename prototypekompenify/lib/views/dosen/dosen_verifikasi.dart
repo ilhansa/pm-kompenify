@@ -181,8 +181,8 @@ class _VerifikasiCard extends StatelessWidget {
         border: Border.all(
           color: isMonitoringMode
               ? (isUdahSelesai
-                    ? const Color(0xFF6C63FF).withOpacity(0.5)
-                    : Colors.white10)
+                  ? const Color(0xFF6C63FF).withOpacity(0.5)
+                  : Colors.white10)
               : AppTheme.accentOrange.withOpacity(0.4),
           width: 1.5,
         ),
@@ -255,13 +255,28 @@ class _VerifikasiCard extends StatelessWidget {
                   itemCount: p.buktiFotos.length,
                   itemBuilder: (context, idx) => Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        p.buktiFotos[idx].url,
-                        fit: BoxFit.cover,
-                        width: 140,
-                        headers: const {'ngrok-skip-browser-warning': 'true'},
+                    // 🚀 PASANG GESTURE DETECTOR DI SINI BOS!
+                    child: GestureDetector(
+                      onTap: () {
+                        final urls = p.buktiFotos.map((foto) => foto.url).toList();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => _FotoViewerScreen(
+                              urls: urls,
+                              initialIndex: idx,
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          p.buktiFotos[idx].url,
+                          fit: BoxFit.cover,
+                          width: 140,
+                          headers: const {'ngrok-skip-browser-warning': 'true'},
+                        ),
                       ),
                     ),
                   ),
@@ -567,4 +582,116 @@ void _showRevisiDialog(
       ],
     ),
   );
+}
+
+// ==========================================================
+// CLASS TAMBAHAN UNTUK FITUR ZOOM FOTO (FULLSCREEN VIEWER)
+// ==========================================================
+class _FotoViewerScreen extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _FotoViewerScreen({required this.urls, required this.initialIndex});
+
+  @override
+  State<_FotoViewerScreen> createState() => _FotoViewerScreenState();
+}
+
+class _FotoViewerScreenState extends State<_FotoViewerScreen> {
+  late PageController _pageController;
+  late int _current;
+
+  // Header anti-blokir ngrok
+  static const _ngrokHeaders = {'ngrok-skip-browser-warning': 'true'};
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.urls.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) {
+              return InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5.0, // 🚀 INI YANG BIKIN BISA DI-ZOOM SAMPAI PECAH!
+                child: Center(
+                  child: Image.network(
+                    widget.urls[i],
+                    headers: _ngrokHeaders,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  _CircleIconBtn(
+                    icon: Icons.close_rounded,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_current + 1} / ${widget.urls.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CircleIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CircleIconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
 }

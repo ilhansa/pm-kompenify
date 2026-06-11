@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/assignment_model.dart';
 import '../models/pengajuan_model.dart';
 import '../services/pengajuan_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MahasiswaController extends ChangeNotifier {
   final MahasiswaKompenService _mhsService = MahasiswaKompenService();
@@ -151,4 +152,31 @@ class MahasiswaController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+Future<Position?> _dapatkanLokasiSaatIni() async {
+  bool serviceEnabled;
+  LocationPermission permission;
+
+  // Cek apakah GPS HP menyala
+  serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    return Future.error('GPS belum dinyalakan, Bos!');
+  }
+
+  // Cek status izin
+  permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      return Future.error('Izin akses lokasi ditolak!');
+    }
+  }
+  
+  if (permission == LocationPermission.deniedForever) {
+    return Future.error('Izin lokasi diblokir permanen oleh sistem HP.');
+  } 
+
+  // Ambil titik koordinat paling akurat
+  return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+}
 }
