@@ -12,7 +12,7 @@ import '../shared/common_widgets.dart';
 import '../auth/login_screen.dart';
 
 class ProfilScreen extends StatelessWidget {
-  // 🚀 TAMBAHAN: Menerima callback opsional dari Shell jika ingin pindah tab navigasi lorr
+  // 🚀 CALLBACK NAVIGASI TAB SHELL UTAMA LORR
   final Function(int)? onNavigateToTab;
 
   const ProfilScreen({super.key, this.onNavigateToTab});
@@ -25,7 +25,7 @@ class ProfilScreen extends StatelessWidget {
 
     if (user == null) return const SizedBox();
 
-    // 📝 DETEKSI ROLE SECARA SPESIFIK (Alur logika asli kelompok Sultan)
+    // 📝 DETEKSI ROLE SECARA SPESIFIK
     final roleName = user.role.name.toLowerCase();
     final isMahasiswa = roleName == 'mhs' || roleName == 'mahasiswa';
     final isDosen = roleName == 'dosen';
@@ -36,15 +36,15 @@ class ProfilScreen extends StatelessWidget {
     final dosenController = context.watch<DosenController>();
     final kaprodiController = context.watch<KaprodiController>();
 
-    // ─── AMBIL DATA SESUAI MODEL ASLI BAWAAN KELOMPOKMU ───
+    // ─── AMBIL DATA SESUAI MODEL ASLI TIM SULTAN ───
 
-    // -- Data Mahasiswa (Dinamis 100% dari API lorr)
+    // -- Data Mahasiswa
     final listPengajuanMhs = isMahasiswa ? mhsController.pengajuanSaya : [];
     final totalPengajuanMhs = listPengajuanMhs.length;
     final displayTotalWajib = user.mahasiswa?.totalJamKompen ?? 0;
     final displaySisaJam = user.mahasiswa?.sisaJamKompen ?? 0;
 
-    // -- Data Dosen
+    // -- Data Dosen (Diambil dinamis berdasarkan status pengerjaan lorr!)
     final totalAssignment = isDosen ? dosenController.assignmentsApi.length : 0;
     final totalVerifikasi = isDosen
         ? dosenController.pengajuanMenungguVerifikasi
@@ -57,12 +57,20 @@ class ProfilScreen extends StatelessWidget {
         kaprodiController.pengajuanMenungguVerifikasiKaprodi;
     final kaprodiPending = isKaprodi
         ? allPengajuanKaprodi
-              .where((p) => p.status == 'menunggu_ttd_kaprodi')
+              .where(
+                (p) =>
+                    p.status.toString().toLowerCase().trim() ==
+                    'menunggu_ttd_kaprodi',
+              )
               .length
         : 0;
     final kaprodiLunas = isKaprodi
         ? allPengajuanKaprodi
-              .where((p) => p.status == 'selesai' || p.status == 'diterima')
+              .where(
+                (p) =>
+                    p.status.toString().toLowerCase().trim() == 'selesai' ||
+                    p.status.toString().toLowerCase().trim() == 'diterima',
+              )
               .length
         : 0;
 
@@ -71,21 +79,23 @@ class ProfilScreen extends StatelessWidget {
         child: RefreshIndicator(
           color: AppTheme.primary,
           backgroundColor: AppTheme.bgCard,
-          // 📝 REFRESH SELEKTIF: Mengamankan sistem agar fetch data tidak salah alamat role
+          // 📝 REFRESH SELEKTIF DATA SERVER LARAGON LORR
           onRefresh: () async {
             await context.read<AuthController>().refreshProfile();
 
-            // Jika yang login ternyata akun mahasiswa, tarik juga riwayat kompennya lorr
-            if (isMahasiswa) {
-              await context.read<MahasiswaController>().fetchPengajuanSaya(
-                authController.token ?? '',
-              );
-            }
-            // Jika dosen yang login, refresh data tugas milik dosennya lorr
-            else if (isDosen) {
-              await context.read<DosenController>().fetchAssignments(
-                authController.token ?? '',
-              );
+            final token = authController.token ?? '';
+            if (token.isNotEmpty) {
+              if (isMahasiswa) {
+                await context.read<MahasiswaController>().fetchPengajuanSaya(
+                  token,
+                );
+              } else if (isDosen) {
+                await context.read<DosenController>().fetchAssignments(token);
+              } else if (isKaprodi) {
+                await context
+                    .read<KaprodiController>()
+                    .fetchPengajuanMenungguVerifikasiKaprodi(token);
+              }
             }
           },
           child: SingleChildScrollView(
@@ -140,7 +150,7 @@ class ProfilScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
 
-                // IDENTITAS (NIM / NIP)
+                // IDENTITAS UTAMA (NIM / NIP)
                 Text(
                   isMahasiswa
                       ? 'NIM: ${user.username}'
@@ -151,27 +161,21 @@ class ProfilScreen extends StatelessWidget {
                   ),
                 ),
 
-                // PROGRAM STUDI KONDISIONAL
-                if (isMahasiswa && user.mahasiswa?.prodi != null)
+                // PRODI KONDISIONAL (HANYA UNTUK MAHASISWA, DOSEN/KAPRODI SUDAH DIHAPUS TOTAL)
+                if (isMahasiswa && user.mahasiswa?.prodi != null) ...[
+                  const SizedBox(height: 2),
                   Text(
                     user.mahasiswa!.prodi!,
                     style: const TextStyle(
                       color: AppTheme.textMuted,
                       fontSize: 12,
                     ),
-                  )
-                else if (isDosen && user.dosen?.prodi != null)
-                  Text(
-                    user.dosen!.prodi!,
-                    style: const TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 12,
-                    ),
                   ),
+                ],
 
                 const SizedBox(height: 28),
 
-                // ─── KARTU STATISTIK KONDISIONAL BERDASARKAN ROLE ───
+                // ─── KARTU STATISTIK RINGKASAN DATA ───
                 if (isMahasiswa) ...[
                   _buildMahasiswaRekap(displayTotalWajib, displaySisaJam),
                 ] else if (isDosen) ...[
@@ -186,16 +190,22 @@ class ProfilScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // ─── MENU UTAMA LIST VIEW KONDISIONAL ───
+                // ─── MENU OPSI LIST VIEW NAVIGASI TAB LORR ───
                 if (isMahasiswa) ...[
                   _menuItem(
                     Icons.assignment_outlined,
                     'Riwayat Kompen Saya',
-                    subtitle: '$totalPengajuanMhs pengajuan',
+                    subtitle: '$totalPengajuanMhs pengajuan tercatat',
                     onTap: () {
-                      if (onNavigateToTab != null) {
-                        onNavigateToTab!(2); // Pindah ke tab Kompen Saya lorr
-                      }
+                      if (onNavigateToTab != null) onNavigateToTab!(2);
+                    },
+                  ),
+                  _menuItem(
+                    Icons.assignment_ind_outlined,
+                    'Daftar Assignment Aktif',
+                    subtitle: 'Lihat tugas kompen dari dosen',
+                    onTap: () {
+                      if (onNavigateToTab != null) onNavigateToTab!(1);
                     },
                   ),
                 ] else if (isDosen) ...[
@@ -204,11 +214,7 @@ class ProfilScreen extends StatelessWidget {
                     'Daftar Assignment Saya',
                     subtitle: '$totalAssignment tugas aktif di sistem',
                     onTap: () {
-                      if (onNavigateToTab != null) {
-                        onNavigateToTab!(
-                          1,
-                        ); // Pindah ke tab Assignment Dosen lorr
-                      }
+                      if (onNavigateToTab != null) onNavigateToTab!(1);
                     },
                   ),
                   _menuItem(
@@ -216,49 +222,29 @@ class ProfilScreen extends StatelessWidget {
                     'Menunggu Verifikasi',
                     subtitle: '$totalVerifikasi berkas kompen masuk',
                     onTap: () {
-                      if (onNavigateToTab != null) {
-                        onNavigateToTab!(
-                          2,
-                        ); // Pindah ke tab Verifikasi Dosen lorr
-                      }
+                      if (onNavigateToTab != null) onNavigateToTab!(2);
                     },
                   ),
                 ] else if (isKaprodi) ...[
                   _menuItem(
                     Icons.verified_outlined,
-                    'Approval Akhir Kompen',
-                    subtitle: '$kaprodiPending berkas menunggu persetujuan',
+                    'Approval Akhir Kompen (E-TTD)',
+                    subtitle: '$kaprodiPending berkas mengantre persetujuan',
+                    onTap: () {
+                      if (onNavigateToTab != null) onNavigateToTab!(2);
+                    },
                   ),
                 ],
 
                 _menuItem(
                   Icons.notifications_outlined,
-                  'Notifikasi',
-                  subtitle: '${authController.unreadCount} belum dibaca',
+                  'Notifikasi Sistem',
+                  subtitle:
+                      '${authController.unreadCount} pemberitahuan belum dibaca',
                   onTap: () {
-                    if (onNavigateToTab != null) {
-                      onNavigateToTab!(
-                        3,
-                      ); // Pindah ke tab Notifikasi global lorr
-                    }
+                    if (onNavigateToTab != null) onNavigateToTab!(3);
                   },
                 ),
-
-                // 🚀 BUNGKUSAN SAKTI: Hanya muncul di Mahasiswa, area Dosen otomatis bersih lorr![cite: 1]
-                if (isMahasiswa) ...[
-                  _menuItem(
-                    Icons.assignment_ind_outlined,
-                    'Daftar Assignment Aktif',
-                    subtitle: 'Lihat tugas kompen dari dosen',
-                    onTap: () {
-                      if (onNavigateToTab != null) {
-                        onNavigateToTab!(
-                          1,
-                        ); // Meluncur ke tab Assignment Mahasiswa lorr
-                      }
-                    },
-                  ),
-                ],
 
                 _menuItem(
                   Icons.info_outline_rounded,
@@ -391,7 +377,7 @@ class ProfilScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // BUTTON LOGOUT SAKTI
+                // ─── BUTTON LOGOUT SAKTI ───
                 Container(
                   decoration: BoxDecoration(
                     color: AppTheme.accentRed.withOpacity(0.1),

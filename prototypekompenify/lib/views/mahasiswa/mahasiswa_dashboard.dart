@@ -96,7 +96,7 @@ class _MahasiswaDashboardState extends State<MahasiswaDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Halo, ${user.name.split(' ').first}! 👋',
+                          'Halo, ${user.name.split(' ').first}! ',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -110,36 +110,6 @@ class _MahasiswaDashboardState extends State<MahasiswaDashboard> {
                           ),
                         ),
                       ],
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: rekap.sudahLunas
-                            ? AppTheme.accentGreen.withOpacity(0.15)
-                            : AppTheme.accentOrange.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: rekap.sudahLunas
-                              ? AppTheme.accentGreen.withOpacity(0.3)
-                              : AppTheme.accentOrange.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        rekap.sudahLunas
-                            ? '✅ Lunas'
-                            : '⏳ ${rekap.sisaJam} jam lagi',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: rekap.sudahLunas
-                              ? AppTheme.accentGreen
-                              : AppTheme.accentOrange,
-                        ),
-                      ),
                     ),
                   ],
                 ),
