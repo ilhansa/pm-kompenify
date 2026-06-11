@@ -527,7 +527,8 @@ class PengajuanKompenController extends Controller
         return response()->json(['success' => true, 'data' => $query->orderBy('updated_at', 'desc')->get()], 200);
     }
 
-    // PUT: VERIFIKASI TUGAS
+    // PUT: VERIFIKASI TUGAS (MENCATAT TANGGAL MULAI & SELESAI OTOMATIS)
+    // PUT: VERIFIKASI TUGAS (MENGATUR TANGGAL MULAI & SELESAI DI TABEL ASSIGNMENTS LORR!)
     public function verifikasi(Request $request, $id)
     {
         $user = $request->user();
@@ -536,9 +537,14 @@ class PengajuanKompenController extends Controller
             return response()->json(['success' => false, 'message' => 'Akses ditolak!'], 403);
         }
 
+        // Ambil data pengajuan beserta relasi assignment-nya lorr
         $pengajuan = PengajuanKompen::with('assignment')->find($id);
         if (!$pengajuan) {
             return response()->json(['success' => false, 'message' => 'Data pengajuan tidak ditemukan!'], 404);
+        }
+
+        if (!$pengajuan->assignment) {
+            return response()->json(['success' => false, 'message' => 'Relasi assignment tidak ditemukan!'], 404);
         }
 
         $request->validate([
@@ -549,7 +555,7 @@ class PengajuanKompenController extends Controller
             $updateData = [];
             $pesan = '';
 
-            // ─── FASE 1: PERANG SLOT PELAMAR (pending -> sedang dikerjakan) ───
+            // ─── FASE 1: DOSEN PILIH MAHASISWA (pending -> sedang dikerjakan) ───
             if ($pengajuan->status === 'pending') {
                 if ($pengajuan->assignment->dosen_id !== $user->id) {
                     return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
@@ -565,14 +571,18 @@ class PengajuanKompenController extends Controller
                         ->where('status', 'pending')
                         ->update(['status' => 'ditolak']);
 
-                    $pengajuan->assignment->update(['status' => 'sedang dikerjakan']);
+                    // 🚀 SAKTI 1: Update status & TANGGAL MULAI di tabel ASSIGNMENTS (Sesuai gambar phpMyAdmin lorr!)
+                    $pengajuan->assignment->update([
+                        'status' => 'sedang dikerjakan',
+                        'tanggal_mulai' => now()->toDateString() // Ngeset otomatis waktu hari ini lorr!
+                    ]);
                 } else {
                     $updateData['status'] = 'ditolak';
                     $pesan = 'Lamaran mahasiswa ditolak.';
                 }
             }
 
-            // ─── FASE 2: VERIFIKASI PEMBUAT TUGAS (menunggu_ttd_dosen -> menunggu_ttd_kaprodi) ───
+            // ─── FASE 2: DOSEN ACC HASIL + KASIH TTD (menunggu_ttd_dosen -> menunggu_ttd_kaprodi) ───
             else if ($pengajuan->status === 'menunggu_ttd_dosen') {
                 if ($pengajuan->assignment->dosen_id !== $user->id) {
                     return response()->json(['success' => false, 'message' => 'Bukan tugas kompen Anda!'], 403);
@@ -580,23 +590,29 @@ class PengajuanKompenController extends Controller
 
                 if ($request->status === 'diterima') {
                     $updateData['status'] = 'menunggu_ttd_kaprodi';
-                    // 🚀 Di sini Token TTD Digital Dosen langsung disematkan ke kolom database!
+
+                    // Sematkan token QR dosen ke tabel pengajuan_kompen lorr
                     $updateData['qr_token_dosen'] = 'E-KOMPEN-DSN-' . strtoupper(Str::random(10)) . '-' . time();
-                    $pesan = 'Hasil kerja VALID, E-TTD Dosen berhasil disematkan! Berkas dikirim ke antrean Kaprodi.';
+
+                    // 🚀 SAKTI 2: Update TANGGAL SELESAI di tabel ASSIGNMENTS pas status dikirim ke Kaprodi lorr!
+                    $pengajuan->assignment->update([
+                        'tanggal_selesai' => now()->toDateString() // Ngeset otomatis waktu hari ini lorr!
+                    ]);
+
+                    $pesan = 'Hasil kerja VALID, E-TTD Dosen disematkan, dan tanggal selesai dicatat di database!';
                 } else {
                     $updateData['status'] = 'sedang dikerjakan';
                     $pesan = 'Hasil kerja ditolak, mahasiswa diminta revisi.';
                 }
             }
 
-            // ─── FASE 3: TTD FINAL KAPRODI (menunggu_ttd_kaprodi -> diterima) ───
+            // ─── FASE 3: TTD FINAL KAPRODI ───
             else if ($pengajuan->status === 'menunggu_ttd_kaprodi') {
                 if ($user->role !== 'kaprodi') {
                     return response()->json(['success' => false, 'message' => 'Hanya Kaprodi!'], 403);
                 }
 
                 if ($request->status === 'diterima') {
-                    // Load relasi mahasiswa jika belum di-load
                     if (!$pengajuan->mahasiswa) {
                         $pengajuan->load('mahasiswa');
                     }
@@ -604,12 +620,7 @@ class PengajuanKompenController extends Controller
                     $mahasiswa = $pengajuan->mahasiswa;
 
                     if ($mahasiswa) {
-                        // Log nilai sebelum dikurangi untuk memastikan (cek di storage/logs/laravel.log)
                         $jumlahJam = $pengajuan->assignment->jam_kompen;
-
-                        \Illuminate\Support\Facades\Log::info("DEBUG: Mahasiswa ID {$mahasiswa->id} | Sisa Jam Awal: {$mahasiswa->sisa_jam_kompen} | Jam yang akan dikurangi: {$jumlahJam}");
-
-                        // Kurangi jamnya
                         $mahasiswa->sisa_jam_kompen -= $jumlahJam;
                         $mahasiswa->save();
                     } else {
@@ -618,14 +629,14 @@ class PengajuanKompenController extends Controller
 
                     $updateData['status'] = 'diterima';
                     $updateData['qr_token_kaprodi'] = 'E-KOMPEN-KPR-' . strtoupper(Str::random(10)) . '-' . time();
-                    $pesan = '✓ Kompen SAH & LUNAS TOTAL! Jam kompen berhasil dikurangi.';
+                    $pesan = '✓ Kompen SAH & LUNAS TOTAL di tingkat Kaprodi!';
                 } else {
                     $updateData['status'] = 'sedang dikerjakan';
                     $pesan = 'Ditolak oleh Kaprodi, mahasiswa diminta revisi.';
                 }
             }
 
-            // ─── EKSEKUSI UPDATE SATU PINTU ───
+            // ─── EKSEKUSI UPDATE SATU PINTU TABEL PENGAJUAN ───
             $pengajuan->update($updateData);
 
             return response()->json([
@@ -646,7 +657,7 @@ class PengajuanKompenController extends Controller
         // 🚀 LOG 1: Deteksi apakah request dari Flutter Sultan beneran masuk ke fungsi ini
         \Illuminate\Support\Facades\Log::info("=== DETEKTIF PDF: ADA TEMBAKAN MASUK ===");
         \Illuminate\Support\Facades\Log::info("ID Pengajuan yang dicari: " . $id);
-        
+
         try {
             // 1. Tarik data dari database
             $pengajuan = PengajuanKompen::with(['mahasiswa.user', 'assignment'])->find($id);
@@ -674,7 +685,7 @@ class PengajuanKompenController extends Controller
 
             // 4. Proses Kompilasi DomPDF
             \Illuminate\Support\Facades\Log::info("⏳ DETEKTIF PDF: Mulai merender file HTML Blade ke DomPDF...");
-            
+
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.surat_kompen', compact('pengajuan', 'urlValidasiDosen', 'urlValidasiKaprodi'));
             $pdf->setPaper('a4', 'portrait');
 
@@ -689,7 +700,7 @@ class PengajuanKompenController extends Controller
             // 🚀 LOG 3: JIKA CRASH, TULIS PENYEBAB ASLINYA DI SINI JINK!
             \Illuminate\Support\Facades\Log::error("💥 DETEKTIF PDF CRASH SECARA INTERNAL! Alasan: " . $e->getMessage());
             \Illuminate\Support\Facades\Log::error("Line Eror: " . $e->getLine() . " di file " . $e->getFile());
-            
+
             return response()->json(['success' => false, 'message' => 'Gagal mencetak PDF: ' . $e->getMessage()], 500);
         }
     }
@@ -701,12 +712,12 @@ class PengajuanKompenController extends Controller
 
     // 1. Ambil data mahasiswa
     $mahasiswa = Mahasiswa::where('user_id', $user->id)->first();
-    
+
     // 2. Ambil pengajuan yang sudah 'diterima'
     // Menggunakan relasi 'assignment' biar mahasiswa tahu dia selesai tugas apa saja
     $riwayat = PengajuanKompen::where('mahasiswa_id', $mahasiswa->id)
         ->where('status', 'diterima') // Filter cuma yang sudah LUNAS
-        ->with(['assignment']) 
+        ->with(['assignment'])
         ->orderBy('updated_at', 'desc')
         ->get();
 

@@ -16,8 +16,10 @@ class PengajuanKompen extends Model
     'mahasiswa_id',
     'assignment_id',
     'status',
-    'qr_token_dosen',   
-    'qr_token_kaprodi', 
+    'qr_token_dosen',
+    'qr_token_kaprodi',
+    'tanggal_mulai',
+    'tanggal_selesai',
 ];
 
     public $incrementing = false;

@@ -2,8 +2,8 @@
 // Menggunakan AuthController untuk sesi login dan DosenController untuk manajemen CRUD tugas
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/dosen_controller.dart';
 import '../../models/assignment_model.dart';
@@ -20,7 +20,6 @@ class DosenAssignment extends StatefulWidget {
 
 class _DosenAssignmentState extends State<DosenAssignment>
     with AutomaticKeepAliveClientMixin {
-  // 2. Wajib return true agar halaman di-keep di memori HP
   @override
   bool get wantKeepAlive => true;
 
@@ -38,7 +37,6 @@ class _DosenAssignmentState extends State<DosenAssignment>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // 1. Membaca data state koleksi penugasan dari DosenController
     final dosenController = context.watch<DosenController>();
     final list = dosenController.assignmentsApi;
 
@@ -72,7 +70,6 @@ class _DosenAssignmentState extends State<DosenAssignment>
                 onRefresh: () async {
                   final token = context.read<AuthController>().token ?? '';
                   if (token.isNotEmpty) {
-                    // 4. Khusus pas ditarik ke bawah baru kita set forceRefresh: true
                     await context.read<DosenController>().fetchAssignments(
                       token,
                       forceRefresh: true,
@@ -142,11 +139,7 @@ class _DosenAssignmentState extends State<DosenAssignment>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-
-              // Mengambil token otentikasi dari AuthController
               final token = context.read<AuthController>().token ?? '';
-
-              // Menghapus assignment melalui DosenController
               final result = await context
                   .read<DosenController>()
                   .deleteAssignmentApi(token, id);
@@ -189,7 +182,7 @@ class _DosenAssignmentState extends State<DosenAssignment>
   }
 }
 
-// ─── Card ──────────────────────────────────────────────────────────────────────
+// ─── Card Penugasan Dosen ──────────────────────────────────────────────────────
 class _AssignmentApiCard extends StatelessWidget {
   final AssignmentModel assignment;
   final VoidCallback onEdit;
@@ -269,17 +262,6 @@ class _AssignmentApiCard extends StatelessWidget {
                 '${a.jamKompen} jam kompen',
                 style: const TextStyle(fontSize: 12, color: AppTheme.accent),
               ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 13,
-                color: AppTheme.textMuted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${a.tanggalMulai} – ${a.tanggalSelesai}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -334,7 +316,7 @@ class _AssignmentApiCard extends StatelessWidget {
   }
 }
 
-// ─── Form sheet ────────────────────────────────────────────────────────────────
+// ─── Form Sheet Lembar Pembuatan Tugas (BERSIH & RINGAN) ───────────────────────
 class _AssignmentFormSheet extends StatefulWidget {
   final AssignmentModel? assignment;
   const _AssignmentFormSheet({this.assignment});
@@ -344,25 +326,34 @@ class _AssignmentFormSheet extends StatefulWidget {
 }
 
 class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
+  final _formKey = GlobalKey<FormState>();
   final _judulCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _customJamCtrl = TextEditingController();
+
+  final FocusNode _jamFocusNode = FocusNode();
+
   int _jam = 2;
-  DateTime _mulai = DateTime.now();
-  DateTime _berakhir = DateTime.now().add(const Duration(days: 7));
+  final List<int> _presetJam = [2, 3, 4, 6, 8];
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+
+    _jamFocusNode.addListener(() {
+      setState(() {});
+    });
+
     if (widget.assignment != null) {
       final a = widget.assignment!;
       _judulCtrl.text = a.judul;
       _descCtrl.text = a.deskripsi;
       _jam = a.jamKompen;
-      try {
-        _mulai = DateTime.parse(a.tanggalMulai);
-        _berakhir = DateTime.parse(a.tanggalSelesai);
-      } catch (_) {}
+
+      if (!_presetJam.contains(_jam)) {
+        _customJamCtrl.text = _jam.toString();
+      }
     }
   }
 
@@ -370,38 +361,41 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
   void dispose() {
     _judulCtrl.dispose();
     _descCtrl.dispose();
+    _customJamCtrl.dispose();
+    _jamFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
     if (_judulCtrl.text.isEmpty || _descCtrl.text.isEmpty) return;
+
     setState(() => _isSaving = true);
 
-    // Mengambil token sesi aktif dari AuthController
     final token = context.read<AuthController>().token ?? '';
     final dosenCtrl = context.read<DosenController>();
     Map<String, dynamic> result;
 
+    // 🚀 SAKTI: Tanggal mulai dan selesai dilempar string kosong ke API (karena dihandle otomatis backend Laravel lorr)
+    final tanggalHariIni = DateTime.now().toIso8601String().substring(0, 10);
     if (widget.assignment == null) {
-      // Membuat tugas baru menggunakan DosenController
       result = await dosenCtrl.addAssignmentApi(
         token,
         judul: _judulCtrl.text.trim(),
         deskripsi: _descCtrl.text.trim(),
         jamKompen: _jam,
-        tanggalMulai: _mulai.toIso8601String().substring(0, 10),
-        tanggalSelesai: _berakhir.toIso8601String().substring(0, 10),
+        tanggalMulai: tanggalHariIni,
+        tanggalSelesai: tanggalHariIni,
       );
     } else {
-      // Mengubah data tugas lama menggunakan DosenController
       result = await dosenCtrl.editAssignmentApi(
         token,
         widget.assignment!.id,
         judul: _judulCtrl.text.trim(),
         deskripsi: _descCtrl.text.trim(),
         jamKompen: _jam,
-        tanggalMulai: _mulai.toIso8601String().substring(0, 10),
-        tanggalSelesai: _berakhir.toIso8601String().substring(0, 10),
+        tanggalMulai: tanggalHariIni,
+        tanggalSelesai: tanggalHariIni,
       );
     }
 
@@ -432,68 +426,78 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  widget.assignment == null
-                      ? 'Buat Assignment'
-                      : 'Edit Assignment',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    widget.assignment == null
+                        ? 'Buat Assignment'
+                        : 'Edit Assignment',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _judulCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Judul Tugas',
+                  prefixIcon: Icon(Icons.title, color: AppTheme.accent),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _descCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Deskripsi',
+                  prefixIcon: Icon(
+                    Icons.description_outlined,
+                    color: AppTheme.accent,
                   ),
                 ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _judulCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Judul Tugas',
-                prefixIcon: Icon(Icons.title, color: AppTheme.accent),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _descCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Deskripsi',
-                prefixIcon: Icon(
-                  Icons.description_outlined,
-                  color: AppTheme.accent,
-                ),
+              const SizedBox(height: 16),
+              const Text(
+                'Jam Kompen',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Jam Kompen',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [2, 3, 4, 6, 8]
-                  .map(
+              const SizedBox(height: 10),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ..._presetJam.map(
                     (j) => GestureDetector(
-                      onTap: () => setState(() => _jam = j),
+                      onTap: () {
+                        setState(() {
+                          _jam = j;
+                          _customJamCtrl.clear();
+                        });
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 8,
+                          vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: _jam == j
+                          color: _jam == j && _customJamCtrl.text.isEmpty
                               ? AppTheme.primary
                               : AppTheme.bgCardLight,
                           borderRadius: BorderRadius.circular(8),
@@ -501,7 +505,7 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                         child: Text(
                           '$j jam',
                           style: TextStyle(
-                            color: _jam == j
+                            color: _jam == j && _customJamCtrl.text.isEmpty
                                 ? Colors.white
                                 : AppTheme.textSecondary,
                             fontWeight: FontWeight.w600,
@@ -509,112 +513,122 @@ class _AssignmentFormSheetState extends State<_AssignmentFormSheet> {
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateBtn(
-                    label: 'Mulai',
-                    date: _mulai,
-                    onPick: (d) => setState(() => _mulai = d),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _DateBtn(
-                    label: 'Berakhir',
-                    date: _berakhir,
-                    onPick: (d) => setState(() => _berakhir = d),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+
+                  SizedBox(
+                    width: 110,
+                    height: 40,
+                    child: TextFormField(
+                      controller: _customJamCtrl,
+                      focusNode: _jamFocusNode,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: _jamFocusNode.hasFocus ? '' : 'Lainnya...',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
                         ),
-                      )
-                    : Text(
-                        widget.assignment == null
-                            ? 'Buat Assignment'
-                            : 'Simpan Perubahan',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                        fillColor:
+                            _customJamCtrl.text.isNotEmpty ||
+                                _jamFocusNode.hasFocus
+                            ? AppTheme.primary.withOpacity(0.1)
+                            : AppTheme.inputFill,
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: AppTheme.primary,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color:
+                                _customJamCtrl.text.isNotEmpty ||
+                                    _jamFocusNode.hasFocus
+                                ? AppTheme.primary
+                                : AppTheme.divider,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
+                      onChanged: (val) {
+                        setState(() {
+                          if (val.isNotEmpty) {
+                            _jam = int.tryParse(val) ?? 0;
+                          } else {
+                            _jam = 2;
+                          }
+                        });
+                      },
+                      validator: (val) {
+                        if (val != null && val.isNotEmpty) {
+                          final inputAngka = int.tryParse(val) ?? 0;
+                          if (inputAngka > 50) {
+                            return 'Max 50 jam!';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-class _DateBtn extends StatelessWidget {
-  final String label;
-  final DateTime date;
-  final void Function(DateTime) onPick;
+              if (_customJamCtrl.text.isNotEmpty &&
+                  (int.tryParse(_customJamCtrl.text) ?? 0) > 50)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, left: 4),
+                  child: Text(
+                    '❌ Batas pengisian jam kompen maksimal adalah 50 jam.',
+                    style: TextStyle(
+                      color: AppTheme.accentRed,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
 
-  const _DateBtn({
-    required this.label,
-    required this.date,
-    required this.onPick,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: date,
-          firstDate: DateTime.now().subtract(const Duration(days: 30)),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-        );
-        if (picked != null) onPick(picked);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppTheme.inputFill,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.divider),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('dd MMM yyyy').format(date),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          widget.assignment == null
+                              ? 'Buat Assignment'
+                              : 'Simpan Perubahan',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
