@@ -5,9 +5,9 @@ use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\PengajuanKompenController;
 
 Route::prefix('kaprodi')->group(function () {
-    
+
     // Rute CRUD Assignment
-    
+
     // view
     // get all
     Route::get('/assignments', [AssignmentController::class, 'index']);
@@ -25,4 +25,10 @@ Route::prefix('kaprodi')->group(function () {
     Route::get('/assignments/{assignment_id}/pengajuan-kompen', [PengajuanKompenController::class, 'pengajuanKompenByAssignment']);
     // menerima/menolak pengajuan
     Route::put('/pengajuan-kompen/{id}/status', [PengajuanKompenController::class, 'updateStatus']);
+    // GET | Lihat daftar tugas yang menunggu ACC/TTD
+    Route::get('/pengajuan-kompen/menunggu-verifikasi', [PengajuanKompenController::class, 'indexMenungguVerifikasi']);
+    // kasih ttd
+    Route::post('/pengajuan-kompen/{id}/ttd', [PengajuanKompenController::class, 'berikanTandaTangan']);
+    // Rute Sakti Satu Pintu untuk Kaprodi
+    Route::put('/pengajuan-kompen/{id}/verifikasi', [PengajuanKompenController::class, 'verifikasi']);
 });

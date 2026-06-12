@@ -28,4 +28,20 @@ class Assignment extends Model
     {
         return $this->belongsTo(User::class, 'dosen_id');
     }
+
+    // 1. Relasi ke Pengajuan (Satu Tugas punya Banyak Pengajuan)
+    public function pengajuans()
+    {
+        return $this->hasMany(PengajuanKompen::class, 'assignment_id');
+    }
+
+    // 2. Kalau Tugas dihapus, pengajuannya juga kehapus (lewat Laravel)
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($assignment) {
+            $assignment->pengajuans->each->delete();
+        });
+    }
 }

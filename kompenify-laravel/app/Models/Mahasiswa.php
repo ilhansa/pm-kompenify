@@ -9,8 +9,12 @@ class Mahasiswa extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'nim', 'prodi'];
-
+    protected $fillable = [
+        'id',
+        'user_id',
+        'nim',
+        'sisa_jam_kompen',
+    ];
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -9,21 +9,33 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('pengajuan_kompen', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary(); // UUID bawaan kelompok lu
 
-            // MAHASISWA (bigInteger FK, sesuai $table->id() di mahasiswas)
+            // Foreign Key Mahasiswa
             $table->foreignId('mahasiswa_id')
                 ->constrained('mahasiswas')
                 ->cascadeOnDelete();
 
-            // ASSIGNMENT (UUID FK)
+            // Foreign Key Assignment
             $table->uuid('assignment_id');
             $table->foreign('assignment_id')
                 ->references('id')
                 ->on('assignments')
                 ->cascadeOnDelete();
 
-            $table->string('status')->default('pending');
+            // 🚀 KUNCI ENUM DI SINI: Hanya 6 status ini yang boleh masuk database!
+            $table->enum('status', [
+                'pending',
+                'sedang dikerjakan',
+                'menunggu_ttd_dosen',
+                'menunggu_ttd_kaprodi',
+                'diterima',
+                'ditolak'
+            ])->default('pending'); // Pas war slot otomatis 'pending'
+
+            // Kolom Token QR E-TTD Digital
+            $table->string('qr_token_dosen')->nullable();
+            $table->string('qr_token_kaprodi')->nullable();
 
             $table->timestamps();
         });

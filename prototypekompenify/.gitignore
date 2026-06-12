@@ -46,3 +46,6 @@ app.*.map.json
 
 # env
 .env
+
+../kompenify-laravel/bootstrap/cache/packages.php
+../kompenify-laravel/bootstrap/cache/services.php

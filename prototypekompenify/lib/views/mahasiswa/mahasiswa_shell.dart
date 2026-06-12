@@ -1,7 +1,10 @@
+// lib/views/mahasiswa/mahasiswa_shell.dart
+// Menggunakan AuthController untuk sinkronisasi session dan badge notifikasi global
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
-import '../../controllers/data_service.dart';
+import '../../controllers/auth_controller.dart';
 import '../../utils/app_theme.dart';
 import 'mahasiswa_dashboard.dart';
 import 'assignment_list.dart';
@@ -19,25 +22,30 @@ class MahasiswaShell extends StatefulWidget {
 class _MahasiswaShellState extends State<MahasiswaShell> {
   int _idx = 0;
 
-  final _screens = const [
-    MahasiswaDashboard(),
-    AssignmentListScreen(),
-    KompenSayaScreen(),
-    NotifikasiScreen(),
-    ProfilScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final dataSvc = context.watch<DataService>();
-    
-    // 1. Konversi currentUser?.id ke String menggunakan .toString() agar singkron dengan fungsi statis
-    final unread = dataSvc.getUnreadCount(
-      dataSvc.currentUser?.id != null ? dataSvc.currentUser!.id.toString() : '',
-    );
+    // Mengakses data real-time jumlah notifikasi masuk via AuthController
+    final authController = context.watch<AuthController>();
+    final unread = authController.unreadCount;
+
+    // 🚀 SAKTI: Kita taruh daftar screen di sini agar bisa memberikan fungsi ganti indeks secara real-time jink!
+    final screens = [
+      const MahasiswaDashboard(),
+      const AssignmentListScreen(),
+      const KompenSayaScreen(),
+      const NotifikasiScreen(),
+      // DI SINI KITA LEMPAR LOGIKA PINDAH SHELL TAB NYA LORR!
+      ProfilScreen(
+        onNavigateToTab: (indexBaru) {
+          setState(() {
+            _idx = indexBaru;
+          });
+        },
+      ),
+    ];
 
     return Scaffold(
-      body: _screens[_idx],
+      body: screens[_idx], // Ambil list dinamis dari variabel di atas lorr
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.bgCard,
